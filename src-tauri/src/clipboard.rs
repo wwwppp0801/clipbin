@@ -5,6 +5,7 @@ use crate::models::{ContentType, NewClip};
 pub trait ClipboardReader: Send {
     fn get_text(&mut self) -> Option<String>;
     fn get_image(&mut self) -> Option<Vec<u8>>;
+    fn get_file_urls(&mut self) -> Option<Vec<String>>;
 }
 
 pub struct SystemClipboard {
@@ -28,9 +29,75 @@ impl ClipboardReader for SystemClipboard {
         let img = self.clipboard.get_image().ok()?;
         encode_rgba_to_png(img.width as u32, img.height as u32, &img.bytes)
     }
+
+    fn get_file_urls(&mut self) -> Option<Vec<String>> {
+        #[cfg(target_os = "macos")]
+        {
+            read_file_urls_from_pasteboard()
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            None
+        }
+    }
 }
 
-/// Encode raw RGBA pixel data to PNG bytes using the `image` crate.
+/// Read file URLs from NSPasteboard using Objective-C FFI.
+#[cfg(target_os = "macos")]
+fn read_file_urls_from_pasteboard() -> Option<Vec<String>> {
+    use objc::runtime::{Class, Object};
+    use objc::{msg_send, sel, sel_impl};
+
+    unsafe {
+        let cls = Class::get("NSPasteboard")?;
+        let pb: *mut Object = msg_send![cls, generalPasteboard];
+        if pb.is_null() {
+            return None;
+        }
+
+        // Check if pasteboard has file URLs
+        let nsurl_cls = Class::get("NSURL")?;
+        let class_array: *mut Object =
+            msg_send![Class::get("NSArray")?, arrayWithObject: nsurl_cls];
+        let urls: *mut Object =
+            msg_send![pb, readObjectsForClasses: class_array options: std::ptr::null::<Object>()];
+
+        if urls.is_null() {
+            return None;
+        }
+
+        let count: usize = msg_send![urls, count];
+        if count == 0 {
+            return None;
+        }
+
+        let mut paths = Vec::new();
+        for i in 0..count {
+            let url: *mut Object = msg_send![urls, objectAtIndex: i];
+            if url.is_null() {
+                continue;
+            }
+            let path: *mut Object = msg_send![url, path];
+            if path.is_null() {
+                continue;
+            }
+            let cstr: *const std::os::raw::c_char = msg_send![path, UTF8String];
+            if !cstr.is_null() {
+                let s = std::ffi::CStr::from_ptr(cstr).to_string_lossy().to_string();
+                if !s.is_empty() {
+                    paths.push(s);
+                }
+            }
+        }
+
+        if paths.is_empty() {
+            None
+        } else {
+            Some(paths)
+        }
+    }
+}
+
 fn encode_rgba_to_png(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
     use image::{ImageBuffer, RgbaImage};
     use std::io::Cursor;
@@ -45,6 +112,7 @@ pub struct ClipboardMonitor<R: ClipboardReader> {
     reader: R,
     last_text_hash: Option<String>,
     last_image_hash: Option<String>,
+    last_file_hash: Option<String>,
 }
 
 pub enum ClipboardContent {
@@ -104,19 +172,28 @@ impl<R: ClipboardReader> ClipboardMonitor<R> {
             reader,
             last_text_hash: None,
             last_image_hash: None,
+            last_file_hash: None,
         }
     }
 
     pub fn check(&mut self) -> Option<ClipboardContent> {
-        // Try text first
-        if let Some(text) = self.reader.get_text() {
-            let content = if is_file_path(&text) {
-                ClipboardContent::FilePath(text)
-            } else {
-                ClipboardContent::Text(text)
-            };
+        // Priority: file URLs > text > image
+        // Check file URLs first (Finder copy)
+        if let Some(paths) = self.reader.get_file_urls() {
+            let joined = paths.join("\n");
+            let content = ClipboardContent::FilePath(joined);
             let hash = content.compute_hash();
+            if self.last_file_hash.as_ref() != Some(&hash) {
+                self.last_file_hash = Some(hash);
+                return Some(content);
+            }
+            return None;
+        }
 
+        // Try text
+        if let Some(text) = self.reader.get_text() {
+            let content = classify_text(text);
+            let hash = content.compute_hash();
             if self.last_text_hash.as_ref() != Some(&hash) {
                 self.last_text_hash = Some(hash);
                 return Some(content);
@@ -128,7 +205,6 @@ impl<R: ClipboardReader> ClipboardMonitor<R> {
         if let Some(image_data) = self.reader.get_image() {
             let content = ClipboardContent::Image(image_data);
             let hash = content.compute_hash();
-
             if self.last_image_hash.as_ref() != Some(&hash) {
                 self.last_image_hash = Some(hash);
                 return Some(content);
@@ -139,13 +215,25 @@ impl<R: ClipboardReader> ClipboardMonitor<R> {
     }
 }
 
-fn is_file_path(text: &str) -> bool {
+/// Classify text content — check if it's a file path that exists on disk.
+fn classify_text(text: String) -> ClipboardContent {
     let trimmed = text.trim();
-    if trimmed.is_empty() || trimmed.contains('\n') {
-        return false;
+    // Single line, looks like an absolute path, and actually exists
+    if !trimmed.contains('\n') && (trimmed.starts_with('/') || trimmed.starts_with("~/")) {
+        let expanded = if trimmed.starts_with("~/") {
+            if let Some(home) = std::env::var("HOME").ok() {
+                trimmed.replacen("~", &home, 1)
+            } else {
+                trimmed.to_string()
+            }
+        } else {
+            trimmed.to_string()
+        };
+        if std::path::Path::new(&expanded).exists() {
+            return ClipboardContent::FilePath(text);
+        }
     }
-    // Check if it looks like an absolute path
-    trimmed.starts_with('/') || trimmed.starts_with("~/")
+    ClipboardContent::Text(text)
 }
 
 #[cfg(test)]
@@ -155,6 +243,7 @@ mod tests {
     struct MockClipboard {
         text: Option<String>,
         image: Option<Vec<u8>>,
+        file_urls: Option<Vec<String>>,
     }
 
     unsafe impl Send for MockClipboard {}
@@ -164,17 +253,26 @@ mod tests {
             Self {
                 text: None,
                 image: None,
+                file_urls: None,
             }
         }
 
         fn set_text(&mut self, text: &str) {
             self.text = Some(text.to_string());
             self.image = None;
+            self.file_urls = None;
         }
 
         fn set_image(&mut self, data: Vec<u8>) {
             self.image = Some(data);
             self.text = None;
+            self.file_urls = None;
+        }
+
+        fn set_file_urls(&mut self, urls: Vec<String>) {
+            self.file_urls = Some(urls);
+            self.text = None;
+            self.image = None;
         }
     }
 
@@ -186,6 +284,10 @@ mod tests {
         fn get_image(&mut self) -> Option<Vec<u8>> {
             self.image.clone()
         }
+
+        fn get_file_urls(&mut self) -> Option<Vec<String>> {
+            self.file_urls.clone()
+        }
     }
 
     #[test]
@@ -193,9 +295,8 @@ mod tests {
         let content = ClipboardContent::Text("hello".to_string());
         let hash = content.compute_hash();
         assert!(!hash.is_empty());
-        assert_eq!(hash.len(), 64); // SHA-256 = 32 bytes = 64 hex chars
+        assert_eq!(hash.len(), 64);
 
-        // Same content produces same hash
         let content2 = ClipboardContent::Text("hello".to_string());
         assert_eq!(content.compute_hash(), content2.compute_hash());
     }
@@ -204,8 +305,6 @@ mod tests {
     fn test_compute_hash_different_types() {
         let text = ClipboardContent::Text("hello".to_string());
         let filepath = ClipboardContent::FilePath("hello".to_string());
-
-        // Different types with same string produce different hashes
         assert_ne!(text.compute_hash(), filepath.compute_hash());
     }
 
@@ -217,14 +316,32 @@ mod tests {
     }
 
     #[test]
-    fn test_is_file_path() {
-        assert!(is_file_path("/Users/test/file.txt"));
-        assert!(is_file_path("~/Documents/file.txt"));
-        assert!(!is_file_path("hello world"));
-        assert!(!is_file_path("http://example.com"));
-        assert!(!is_file_path("/path/one\n/path/two"));
-        assert!(!is_file_path(""));
-        assert!(!is_file_path("  "));
+    fn test_classify_text_regular() {
+        let content = classify_text("hello world".to_string());
+        match content {
+            ClipboardContent::Text(t) => assert_eq!(t, "hello world"),
+            _ => panic!("Expected text"),
+        }
+    }
+
+    #[test]
+    fn test_classify_text_nonexistent_path() {
+        // Path that doesn't exist should be classified as text
+        let content = classify_text("/nonexistent/path/abc123".to_string());
+        match content {
+            ClipboardContent::Text(_) => {}
+            _ => panic!("Expected text for nonexistent path"),
+        }
+    }
+
+    #[test]
+    fn test_classify_text_existing_path() {
+        // /tmp always exists
+        let content = classify_text("/tmp".to_string());
+        match content {
+            ClipboardContent::FilePath(p) => assert_eq!(p, "/tmp"),
+            _ => panic!("Expected file path for /tmp"),
+        }
     }
 
     #[test]
@@ -273,9 +390,7 @@ mod tests {
         mock.set_text("hello");
         let mut monitor = ClipboardMonitor::new(mock);
 
-        // First check: new content
         assert!(monitor.check().is_some());
-        // Second check: same content, should be None
         assert!(monitor.check().is_none());
     }
 
@@ -288,7 +403,6 @@ mod tests {
         assert!(monitor.check().is_some());
         assert!(monitor.check().is_none());
 
-        // Change the text
         monitor.reader.set_text("world");
         let result = monitor.check();
         assert!(result.is_some());
@@ -299,15 +413,21 @@ mod tests {
     }
 
     #[test]
-    fn test_monitor_detects_file_path() {
+    fn test_monitor_detects_file_urls() {
         let mut mock = MockClipboard::new();
-        mock.set_text("/Users/test/file.txt");
+        mock.set_file_urls(vec![
+            "/Users/test/file.txt".to_string(),
+            "/Users/test/other.txt".to_string(),
+        ]);
         let mut monitor = ClipboardMonitor::new(mock);
 
         let result = monitor.check();
         assert!(result.is_some());
         match result.unwrap() {
-            ClipboardContent::FilePath(p) => assert_eq!(p, "/Users/test/file.txt"),
+            ClipboardContent::FilePath(p) => {
+                assert!(p.contains("/Users/test/file.txt"));
+                assert!(p.contains("/Users/test/other.txt"));
+            }
             _ => panic!("Expected file path content"),
         }
     }
