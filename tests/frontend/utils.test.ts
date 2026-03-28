@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { formatRelativeTime, truncateText, getContentIcon, isUrl } from "../../src/lib/utils";
+import {
+  formatRelativeTime,
+  truncateText,
+  getContentIcon,
+  isUrl,
+  isJson,
+} from "../../src/lib/utils";
 
 describe("truncateText", () => {
   it("returns short text unchanged", () => {
@@ -75,5 +81,29 @@ describe("isUrl", () => {
   it("handles null/undefined", () => {
     expect(isUrl(null)).toBe(false);
     expect(isUrl(undefined)).toBe(false);
+  });
+});
+
+describe("isJson", () => {
+  it("detects JSON objects", () => {
+    expect(isJson('{"key": "value"}')).toBe(true);
+  });
+
+  it("detects JSON arrays", () => {
+    expect(isJson("[1, 2, 3]")).toBe(true);
+  });
+
+  it("rejects plain text", () => {
+    expect(isJson("hello world")).toBe(false);
+  });
+
+  it("rejects short strings", () => {
+    expect(isJson("{")).toBe(false);
+    expect(isJson("[]")).toBe(false);
+  });
+
+  it("handles null/undefined", () => {
+    expect(isJson(null)).toBe(false);
+    expect(isJson(undefined)).toBe(false);
   });
 });
