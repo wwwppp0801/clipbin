@@ -5,6 +5,7 @@ import { formatRelativeTime, truncateText } from "../lib/utils";
 interface ClipCardProps {
   clip: ClipItem;
   isSelected: boolean;
+  shortcutNumber?: number;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -14,7 +15,7 @@ const TYPE_COLORS: Record<string, string> = {
   file_path: "bg-amber-500/20 text-amber-400",
 };
 
-export default function ClipCard({ clip, isSelected }: ClipCardProps) {
+export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardProps) {
   const pasteClip = useClipStore((s) => s.pasteClip);
   const deleteClip = useClipStore((s) => s.deleteClip);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -79,11 +80,18 @@ export default function ClipCard({ clip, isSelected }: ClipCardProps) {
           : "border-gray-700/40 bg-gray-800/50 hover:border-gray-600 hover:bg-gray-800/80"
       }`}
     >
-      {/* Header: content type */}
+      {/* Header: content type + shortcut number */}
       <div className="flex items-center justify-between border-b border-gray-700/30 px-3 py-1.5">
-        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${colorClass}`}>
-          {typeLabel}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {shortcutNumber !== undefined && (
+            <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-600/50 text-[9px] font-bold text-gray-300">
+              {shortcutNumber}
+            </span>
+          )}
+          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${colorClass}`}>
+            {typeLabel}
+          </span>
+        </div>
         <span className="text-[10px] text-gray-500">{formatRelativeTime(clip.created_at)}</span>
       </div>
 

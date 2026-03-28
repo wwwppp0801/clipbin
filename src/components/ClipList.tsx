@@ -39,6 +39,13 @@ export default function ClipList() {
         if (clip) {
           useClipStore.getState().pasteClip(clip.id);
         }
+      } else if (e.key >= "1" && e.key <= "9") {
+        // Number keys for quick paste
+        const index = parseInt(e.key) - 1;
+        if (index < clips.length) {
+          e.preventDefault();
+          useClipStore.getState().pasteClip(clips[index].id);
+        }
       }
     },
     [clips, selectedIndex],
@@ -75,7 +82,12 @@ export default function ClipList() {
       data-testid="clip-list"
     >
       {clips.map((clip, index) => (
-        <ClipCard key={clip.id} clip={clip} isSelected={index === selectedIndex} />
+        <ClipCard
+          key={clip.id}
+          clip={clip}
+          isSelected={index === selectedIndex}
+          shortcutNumber={index < 9 ? index + 1 : undefined}
+        />
       ))}
     </div>
   );
