@@ -8,12 +8,10 @@ export default function ClipList() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Reset selection when clips change
   useEffect(() => {
     setSelectedIndex(0);
   }, [clips]);
 
-  // Scroll selected card into view
   useEffect(() => {
     if (!scrollRef.current) return;
     const cards = scrollRef.current.children;
@@ -26,7 +24,6 @@ export default function ClipList() {
     }
   }, [selectedIndex]);
 
-  // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (clips.length === 0) return;
@@ -74,7 +71,7 @@ export default function ClipList() {
   return (
     <div
       ref={scrollRef}
-      className="flex flex-1 items-stretch gap-3 overflow-x-auto px-3 pb-3 scrollbar-hide"
+      className="flex flex-1 items-stretch gap-2.5 overflow-x-auto px-3 pb-3 scrollbar-hide"
       data-testid="clip-list"
     >
       {clips.map((clip, index) => (

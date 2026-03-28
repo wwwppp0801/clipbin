@@ -15,7 +15,7 @@
         "title": "ClipBin",
         "width": 800,
         "height": 260,
-        "resizable": false,
+        "resizable": true,
         "decorations": false,
         "transparent": true,
         "visible": false,

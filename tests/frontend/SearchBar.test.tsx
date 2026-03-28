@@ -9,7 +9,7 @@ describe("SearchBar", () => {
   });
 
   it("renders search input", () => {
-    render(<SearchBar />);
+    render(<SearchBar onOpenSettings={() => {}} />);
     const input = screen.getByTestId("search-input");
     expect(input).toBeInTheDocument();
     expect(input).toHaveAttribute("placeholder", "Search clips...");
@@ -19,7 +19,7 @@ describe("SearchBar", () => {
     const setSearchQuerySpy = vi.fn();
     useClipStore.setState({ setSearchQuery: setSearchQuerySpy } as never);
 
-    render(<SearchBar />);
+    render(<SearchBar onOpenSettings={() => {}} />);
     const input = screen.getByTestId("search-input");
     fireEvent.change(input, { target: { value: "hello" } });
 
@@ -33,7 +33,7 @@ describe("SearchBar", () => {
   });
 
   it("auto-focuses the input on mount", () => {
-    render(<SearchBar />);
+    render(<SearchBar onOpenSettings={() => {}} />);
     expect(screen.getByTestId("search-input")).toHaveFocus();
   });
 });
