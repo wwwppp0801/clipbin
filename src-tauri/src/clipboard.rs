@@ -26,18 +26,19 @@ impl ClipboardReader for SystemClipboard {
 
     fn get_image(&mut self) -> Option<Vec<u8>> {
         let img = self.clipboard.get_image().ok()?;
-        // Encode as PNG bytes
-        let png_data = Vec::new();
-        let encoder = image_to_png(img.width as u32, img.height as u32, &img.bytes)?;
-        Some(encoder.unwrap_or(png_data))
+        encode_rgba_to_png(img.width as u32, img.height as u32, &img.bytes)
     }
 }
 
-// Simple PNG encoding using raw RGBA data
-fn image_to_png(_width: u32, _height: u32, _data: &[u8]) -> Option<Option<Vec<u8>>> {
-    // We'll use a simpler approach - just store raw bytes for now
-    // In production, we'd use the `image` crate
-    None
+/// Encode raw RGBA pixel data to PNG bytes using the `image` crate.
+fn encode_rgba_to_png(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
+    use image::{ImageBuffer, RgbaImage};
+    use std::io::Cursor;
+
+    let img: RgbaImage = ImageBuffer::from_raw(width, height, rgba.to_vec())?;
+    let mut buf = Cursor::new(Vec::new());
+    img.write_to(&mut buf, image::ImageFormat::Png).ok()?;
+    Some(buf.into_inner())
 }
 
 pub struct ClipboardMonitor<R: ClipboardReader> {
