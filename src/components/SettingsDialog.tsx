@@ -143,12 +143,18 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
             <span className="text-right text-gray-300">1-9</span>
             <span className="text-gray-500">Navigate</span>
             <span className="text-right text-gray-300">← →</span>
+            <span className="text-gray-500">First / Last</span>
+            <span className="text-right text-gray-300">Home / End</span>
             <span className="text-gray-500">Toggle pin</span>
             <span className="text-right text-gray-300">⌘P</span>
             <span className="text-gray-500">Delete clip</span>
             <span className="text-right text-gray-300">⌫</span>
+            <span className="text-gray-500">Focus search</span>
+            <span className="text-right text-gray-300">Tab</span>
             <span className="text-gray-500">Dismiss</span>
             <span className="text-right text-gray-300">Esc</span>
+            <span className="text-gray-500">Preview full</span>
+            <span className="text-right text-gray-300">Double-click</span>
           </div>
         </div>
 
