@@ -24,6 +24,8 @@ interface ClipStore {
   deleteClip: (id: number) => Promise<void>;
   copyClip: (id: number) => Promise<void>;
   pasteClip: (id: number) => Promise<void>;
+  toastMessage: string;
+  showToast: (msg: string) => void;
   togglePin: (id: number) => Promise<void>;
   clearHistory: () => Promise<void>;
   addClip: (clip: ClipItem) => void;
@@ -34,6 +36,12 @@ export const useClipStore = create<ClipStore>((set, get) => ({
   clips: [],
   searchQuery: "",
   isLoading: false,
+  toastMessage: "",
+
+  showToast: (msg: string) => {
+    set({ toastMessage: msg });
+    setTimeout(() => set({ toastMessage: "" }), 1500);
+  },
 
   setSearchQuery: (query: string) => {
     set({ searchQuery: query });
@@ -78,6 +86,7 @@ export const useClipStore = create<ClipStore>((set, get) => ({
   copyClip: async (id: number) => {
     try {
       await invoke("copy_clip", { id });
+      get().showToast("Copied to clipboard");
     } catch {
       // silently fail
     }

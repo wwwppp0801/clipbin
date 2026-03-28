@@ -12,6 +12,7 @@ type AnimState = "entering" | "exiting" | "visible" | "hidden";
 function App() {
   const fetchClips = useClipStore((s) => s.fetchClips);
   const listenForChanges = useClipStore((s) => s.listenForChanges);
+  const toastMessage = useClipStore((s) => s.toastMessage);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [animState, setAnimState] = useState<AnimState>("hidden");
 
@@ -86,6 +87,11 @@ function App() {
       <SearchBar onOpenSettings={() => setSettingsOpen(true)} />
       <ClipList />
       <Footer />
+      {toastMessage && (
+        <div className="pointer-events-none absolute bottom-12 left-1/2 -translate-x-1/2 rounded-lg bg-green-600/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-sm">
+          {toastMessage}
+        </div>
+      )}
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
