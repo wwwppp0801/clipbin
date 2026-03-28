@@ -28,8 +28,17 @@ pub async fn paste_clip(db: &Database, id: i64) -> Result<(), String> {
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
 
     match clip.content_type {
-        ContentType::Text | ContentType::FilePath => {
+        ContentType::Text => {
             if let Some(text) = &clip.text_content {
+                clipboard.set_text(text).map_err(|e| e.to_string())?;
+            }
+        }
+        ContentType::FilePath => {
+            if let Some(text) = &clip.text_content {
+                // Write file URLs back to NSPasteboard so Finder can paste them
+                #[cfg(target_os = "macos")]
+                write_file_urls_to_pasteboard(text)?;
+                #[cfg(not(target_os = "macos"))]
                 clipboard.set_text(text).map_err(|e| e.to_string())?;
             }
         }
@@ -94,6 +103,54 @@ pub fn activate_previous_app() {
             let _: bool = msg_send![app, activateWithOptions: 2u64];
         }
     }
+}
+
+/// Write file paths back to NSPasteboard as file URLs (so Finder can paste them).
+#[cfg(target_os = "macos")]
+fn write_file_urls_to_pasteboard(paths_text: &str) -> Result<(), String> {
+    use objc::runtime::{Class, Object, BOOL, YES};
+    use objc::{msg_send, sel, sel_impl};
+
+    let paths: Vec<&str> = paths_text
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .collect();
+    if paths.is_empty() {
+        return Err("No file paths".to_string());
+    }
+
+    unsafe {
+        let pb_cls = Class::get("NSPasteboard").ok_or("NSPasteboard not found")?;
+        let pb: *mut Object = msg_send![pb_cls, generalPasteboard];
+        let _: () = msg_send![pb, clearContents];
+
+        // Build NSMutableArray of NSURL objects
+        let arr_cls = Class::get("NSMutableArray").ok_or("NSMutableArray not found")?;
+        let arr: *mut Object = msg_send![arr_cls, arrayWithCapacity: paths.len()];
+
+        let nsurl_cls = Class::get("NSURL").ok_or("NSURL not found")?;
+        let nsstring_cls = Class::get("NSString").ok_or("NSString not found")?;
+
+        for path in &paths {
+            let ns_path: *mut Object = msg_send![nsstring_cls,
+                stringWithUTF8String: path.as_ptr() as *const std::os::raw::c_char];
+            // Need null-terminated string
+            let c_path = std::ffi::CString::new(*path).map_err(|e| e.to_string())?;
+            let ns_path: *mut Object =
+                msg_send![nsstring_cls, stringWithUTF8String: c_path.as_ptr()];
+            let url: *mut Object = msg_send![nsurl_cls, fileURLWithPath: ns_path];
+            if !url.is_null() {
+                let _: () = msg_send![arr, addObject: url];
+            }
+        }
+
+        let result: BOOL = msg_send![pb, writeObjects: arr];
+        if result != YES {
+            return Err("Failed to write file URLs to pasteboard".to_string());
+        }
+    }
+
+    Ok(())
 }
 
 /// Simulate Cmd+V using Core Graphics events (same approach as Maccy).
