@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 interface Settings {
   hotkey: string;
   max_clips: number;
+  ignored_apps: string[];
 }
 
 interface SettingsDialogProps {
@@ -14,6 +15,7 @@ interface SettingsDialogProps {
 export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const [hotkey, setHotkey] = useState("Shift+CmdOrCtrl+V");
   const [maxClips, setMaxClips] = useState(500);
+  const [ignoredApps, setIgnoredApps] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [recordingHotkey, setRecordingHotkey] = useState(false);
 
@@ -22,6 +24,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
       invoke<Settings>("get_settings").then((s) => {
         setHotkey(s.hotkey);
         setMaxClips(s.max_clips);
+        setIgnoredApps((s.ignored_apps || []).join(", "));
       });
     }
   }, [isOpen]);
@@ -51,7 +54,11 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await invoke("save_settings", { hotkey, maxClips });
+      const ignoredAppsList = ignoredApps
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      await invoke("save_settings", { hotkey, maxClips, ignoredApps: ignoredAppsList });
       onClose();
     } catch (err) {
       console.error("Failed to save settings:", err);
@@ -103,6 +110,23 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
             data-testid="max-clips-input"
             className="h-9 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 text-sm text-white outline-none focus:border-blue-500"
           />
+        </div>
+
+        {/* Ignored Apps */}
+        <div className="mb-4">
+          <label className="mb-1.5 block text-xs font-medium text-gray-400">
+            Ignored Apps (comma-separated)
+          </label>
+          <input
+            type="text"
+            value={ignoredApps}
+            onChange={(e) => setIgnoredApps(e.target.value)}
+            placeholder="1Password, Keychain Access"
+            className="h-9 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 text-sm text-white outline-none focus:border-blue-500"
+          />
+          <p className="mt-1 text-[10px] text-gray-500">
+            Clips from these apps won&apos;t be saved
+          </p>
         </div>
 
         {/* Keyboard Shortcuts Reference */}

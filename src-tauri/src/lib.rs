@@ -67,6 +67,16 @@ pub fn run() {
                             continue;
                         }
                         let source = clipboard::get_frontmost_app_name();
+
+                        // Skip clips from ignored apps (e.g., password managers)
+                        if let Some(ref app_name) = source {
+                            if let Ok(settings) = monitor_settings.try_lock() {
+                                if settings.is_ignored_app(app_name) {
+                                    continue;
+                                }
+                            }
+                        }
+
                         let new_clip = content.into_new_clip(source);
                         let hash = new_clip.content_hash.clone();
                         let db = monitor_db.clone();

@@ -6,6 +6,8 @@ use std::path::PathBuf;
 pub struct Settings {
     pub hotkey: String,
     pub max_clips: i64,
+    #[serde(default)]
+    pub ignored_apps: Vec<String>,
 }
 
 impl Default for Settings {
@@ -13,6 +15,11 @@ impl Default for Settings {
         Self {
             hotkey: "Shift+CmdOrCtrl+V".to_string(),
             max_clips: 500,
+            ignored_apps: vec![
+                "1Password".to_string(),
+                "Keychain Access".to_string(),
+                "KeePassXC".to_string(),
+            ],
         }
     }
 }
@@ -35,5 +42,11 @@ impl Settings {
         let path = Self::config_path(app_data_dir);
         let data = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
         fs::write(&path, data).map_err(|e| e.to_string())
+    }
+
+    pub fn is_ignored_app(&self, app_name: &str) -> bool {
+        self.ignored_apps
+            .iter()
+            .any(|ignored| app_name.eq_ignore_ascii_case(ignored))
     }
 }

@@ -52,11 +52,15 @@ pub async fn save_settings(
     state: State<'_, Arc<Mutex<Settings>>>,
     hotkey: String,
     max_clips: i64,
+    ignored_apps: Option<Vec<String>>,
 ) -> Result<(), String> {
     let mut settings = state.lock().await;
     let old_hotkey = settings.hotkey.clone();
     settings.hotkey = hotkey.clone();
     settings.max_clips = max_clips;
+    if let Some(apps) = ignored_apps {
+        settings.ignored_apps = apps;
+    }
 
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     settings.save(&app_data_dir)?;
