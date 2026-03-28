@@ -45,6 +45,11 @@ export default function ClipList() {
         if (clip) {
           useClipStore.getState().pasteClip(clip.id);
         }
+      } else if (e.key === "Tab") {
+        // Tab: focus search input
+        e.preventDefault();
+        const input = document.querySelector('[data-testid="search-input"]') as HTMLInputElement;
+        input?.focus();
       } else if (e.key === "Backspace" || e.key === "Delete") {
         // Delete selected clip
         e.preventDefault();
