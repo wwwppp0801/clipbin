@@ -37,8 +37,6 @@ function App() {
   const handleAnimationEnd = useCallback(() => {
     if (animState === "entering") {
       setAnimState("visible");
-      // Tell Rust the entrance animation is done — unlock input
-      invoke("animation_done").catch(() => {});
     }
   }, [animState]);
 

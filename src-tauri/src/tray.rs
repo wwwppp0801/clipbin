@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tauri::{
@@ -7,17 +7,26 @@ use tauri::{
     App, Emitter, Manager, WebviewWindow,
 };
 
-/// Timestamp (millis) of the last show action.
-static LAST_SHOW_TIME: AtomicU64 = AtomicU64::new(0);
+/// Timestamp (millis) of the last show/hide action.
+/// All input is ignored for a grace period after this timestamp.
+static LAST_ACTION_TIME: AtomicU64 = AtomicU64::new(0);
 
-/// True while an animation is playing. All inputs are ignored during this time.
-static ANIMATING: AtomicBool = AtomicBool::new(false);
+/// Grace period in ms — ignore all hotkey/blur during this window.
+const GRACE_MS: u64 = 400;
 
 fn now_millis() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+fn is_in_grace_period() -> bool {
+    now_millis().saturating_sub(LAST_ACTION_TIME.load(Ordering::Relaxed)) < GRACE_MS
+}
+
+fn mark_action() {
+    LAST_ACTION_TIME.store(now_millis(), Ordering::Relaxed);
 }
 
 pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
@@ -53,12 +62,7 @@ pub fn setup_blur_hide(window: &WebviewWindow) {
     let win_handle = window.app_handle().clone();
     window.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(false) = event {
-            // Ignore during animation
-            if ANIMATING.load(Ordering::Relaxed) {
-                return;
-            }
-            let elapsed = now_millis().saturating_sub(LAST_SHOW_TIME.load(Ordering::Relaxed));
-            if elapsed > 500 {
+            if !is_in_grace_period() {
                 request_hide(&win_handle);
             }
         }
@@ -66,8 +70,7 @@ pub fn setup_blur_hide(window: &WebviewWindow) {
 }
 
 pub fn toggle_window(app: &tauri::AppHandle) {
-    // Ignore during animation
-    if ANIMATING.load(Ordering::Relaxed) {
+    if is_in_grace_period() {
         return;
     }
 
@@ -80,40 +83,28 @@ pub fn toggle_window(app: &tauri::AppHandle) {
     }
 }
 
-/// Show window with entrance animation
 fn show_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        ANIMATING.store(true, Ordering::Relaxed);
+        mark_action();
         position_at_bottom(app);
-        LAST_SHOW_TIME.store(now_millis(), Ordering::Relaxed);
         window.show().ok();
         window.set_focus().ok();
         app.emit("window-will-show", ()).ok();
     }
 }
 
-/// Request hide — tell frontend to play exit animation.
 fn request_hide(app: &tauri::AppHandle) {
-    ANIMATING.store(true, Ordering::Relaxed);
+    mark_action();
     app.emit("window-will-hide", ()).ok();
 }
 
-/// Actually hide the window (called by frontend after exit animation).
-/// Also clears the animation lock.
+/// Actually hide the window (called by frontend after exit animation)
 pub fn do_hide(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         window.hide().ok();
     }
-    ANIMATING.store(false, Ordering::Relaxed);
 }
 
-/// Called by frontend when entrance animation finishes.
-/// Clears the animation lock so blur/hotkey work again.
-pub fn animation_done() {
-    ANIMATING.store(false, Ordering::Relaxed);
-}
-
-/// Position the window at the bottom of the visible screen area (above Dock)
 fn position_at_bottom(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let scale = window
