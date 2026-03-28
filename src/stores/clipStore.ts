@@ -63,8 +63,9 @@ export const useClipStore = create<ClipStore>((set, get) => ({
     try {
       const clips = await invoke<ClipItem[]>("get_clips", { limit: 50, offset: 0 });
       set({ clips, isLoading: false });
-    } catch {
+    } catch (err) {
       set({ isLoading: false });
+      get().showToast(`Failed to load clips: ${err}`);
     }
   },
 
