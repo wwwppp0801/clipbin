@@ -27,13 +27,17 @@ export default function ClipList() {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (clips.length === 0) return;
-      // Don't intercept when typing in search input
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-        // Only allow arrow keys and enter from input
         if (!["ArrowLeft", "ArrowRight", "Enter"].includes(e.key)) return;
       }
-      if (e.key === "ArrowLeft") {
+      if (e.key === "Home") {
+        e.preventDefault();
+        setSelectedIndex(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        setSelectedIndex(clips.length - 1);
+      } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         setSelectedIndex((i) => Math.max(0, i - 1));
       } else if (e.key === "ArrowRight") {
@@ -81,6 +85,13 @@ export default function ClipList() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
+  // Convert vertical scroll to horizontal scroll in the carousel
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (scrollRef.current && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      scrollRef.current.scrollLeft += e.deltaY;
+    }
+  }, []);
+
   if (isLoading && clips.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
@@ -121,6 +132,7 @@ export default function ClipList() {
       ref={scrollRef}
       className="flex flex-1 items-stretch gap-2.5 overflow-x-auto px-3 pb-3 scrollbar-hide"
       data-testid="clip-list"
+      onWheel={handleWheel}
     >
       {clips.map((clip, index) => (
         <ClipCard
