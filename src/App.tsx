@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import SearchBar from "./components/SearchBar";
 import ClipList from "./components/ClipList";
+import Footer from "./components/Footer";
 import SettingsDialog from "./components/SettingsDialog";
 import { useClipStore } from "./stores/clipStore";
 
@@ -84,6 +85,7 @@ function App() {
       </div>
       <SearchBar onOpenSettings={() => setSettingsOpen(true)} />
       <ClipList />
+      <Footer />
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
