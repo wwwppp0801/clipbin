@@ -22,8 +22,15 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const setPreviewClipId = useClipStore((s) => s.setPreviewClipId);
+
   const handleClick = () => {
     pasteClip(clip.id);
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPreviewClipId(clip.id);
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -73,6 +80,7 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
   return (
     <div
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       data-testid="clip-card"
       className={`group relative flex h-full w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-xl border transition-all ${

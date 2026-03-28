@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import SearchBar from "./components/SearchBar";
 import ClipList from "./components/ClipList";
 import Footer from "./components/Footer";
+import PreviewDialog from "./components/PreviewDialog";
 import SettingsDialog from "./components/SettingsDialog";
 import { useClipStore } from "./stores/clipStore";
 
@@ -13,6 +14,9 @@ function App() {
   const fetchClips = useClipStore((s) => s.fetchClips);
   const listenForChanges = useClipStore((s) => s.listenForChanges);
   const toastMessage = useClipStore((s) => s.toastMessage);
+  const clips = useClipStore((s) => s.clips);
+  const previewClipId = useClipStore((s) => s.previewClipId);
+  const setPreviewClipId = useClipStore((s) => s.setPreviewClipId);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [animState, setAnimState] = useState<AnimState>("hidden");
 
@@ -92,6 +96,10 @@ function App() {
           {toastMessage}
         </div>
       )}
+      <PreviewDialog
+        clip={clips.find((c) => c.id === previewClipId) || null}
+        onClose={() => setPreviewClipId(null)}
+      />
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
