@@ -40,6 +40,17 @@ function App() {
     }
   }, [animState]);
 
+  // Escape key to dismiss
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && animState === "visible") {
+        invoke("do_hide_window").catch(() => {});
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [animState]);
+
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listenForChanges().then((fn) => {
