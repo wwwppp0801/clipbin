@@ -217,13 +217,21 @@ test.describe("ClipBin App", () => {
     await expect(page.getByText("const x = 42;")).toBeVisible({ timeout: 3000 });
   });
 
-  test("settings button opens settings dialog", async ({ page }) => {
+  test("settings button opens settings dialog with all fields", async ({ page }) => {
     await page.getByTestId("settings-button").click();
     await expect(page.getByTestId("settings-dialog")).toBeVisible();
     // Should show hotkey input
     await expect(page.getByTestId("hotkey-input")).toBeVisible();
     // Should show max clips input
     await expect(page.getByTestId("max-clips-input")).toBeVisible();
+    // Should show keyboard shortcuts reference
+    await expect(page.getByText("Keyboard Shortcuts")).toBeVisible();
+    // Should show launch at login toggle
+    await expect(page.getByText("Launch at Login")).toBeVisible();
+    // Should show ignored apps
+    await expect(page.getByText("Ignored Apps")).toBeVisible();
+    // Should show version
+    await expect(page.getByText("ClipBin v")).toBeVisible();
   });
 
   test("footer shows clip count", async ({ page }) => {
