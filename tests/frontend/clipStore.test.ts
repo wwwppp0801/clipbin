@@ -103,4 +103,36 @@ describe("clipStore", () => {
       expect(mockInvoke).toHaveBeenCalledWith("search_clips", { query: "test", limit: 50 });
     });
   });
+
+  it("togglePin updates is_pinned on clip", async () => {
+    useClipStore.setState({ clips: [mockClip] });
+    mockInvoke.mockResolvedValue(true);
+
+    await useClipStore.getState().togglePin(1);
+
+    expect(mockInvoke).toHaveBeenCalledWith("toggle_pin", { id: 1 });
+    expect(useClipStore.getState().clips[0].is_pinned).toBe(true);
+  });
+
+  it("clearHistory removes non-pinned clips", async () => {
+    const pinnedClip = { ...mockClip, id: 10, is_pinned: true };
+    useClipStore.setState({ clips: [mockClip, mockClip2, pinnedClip] });
+    mockInvoke.mockResolvedValue(undefined);
+
+    await useClipStore.getState().clearHistory();
+
+    expect(mockInvoke).toHaveBeenCalledWith("clear_history");
+    const remaining = useClipStore.getState().clips;
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].is_pinned).toBe(true);
+  });
+
+  it("copyClip calls invoke and shows toast", async () => {
+    mockInvoke.mockResolvedValue(undefined);
+
+    await useClipStore.getState().copyClip(1);
+
+    expect(mockInvoke).toHaveBeenCalledWith("copy_clip", { id: 1 });
+    expect(useClipStore.getState().toastMessage).toBe("Copied to clipboard");
+  });
 });
