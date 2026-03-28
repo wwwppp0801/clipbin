@@ -96,7 +96,8 @@ clipbin/
 │   │   ├── SearchBar.test.tsx
 │   │   └── utils.test.ts
 │   └── e2e/
-│       └── app.spec.ts         # Playwright E2E tests (9 scenarios)
+│       ├── app.spec.ts         # Playwright E2E tests (14 scenarios)
+│       └── screenshots.spec.ts # Product screenshot generation
 │
 ├── devlog/                     # Development logs per phase
 ├── .github/workflows/          # CI (lint + test + build) and Release
@@ -133,13 +134,13 @@ pnpm dev
 ### Test
 
 ```bash
-# Rust tests (22 tests)
+# Rust tests (28 tests)
 cd src-tauri && cargo test
 
-# Frontend tests (31 tests)
+# Frontend tests (39 tests)
 pnpm test
 
-# E2E tests (9 tests)
+# E2E tests (14 tests)
 pnpm test:e2e
 
 # All lint checks
