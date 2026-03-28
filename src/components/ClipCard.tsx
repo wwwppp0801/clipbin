@@ -104,9 +104,29 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
             className="h-full w-full rounded-lg object-cover"
             data-testid="clip-image"
           />
+        ) : clip.content_type === "file_path" ? (
+          <div className="flex flex-col gap-1" data-testid="clip-text">
+            {(clip.text_content || "").split("\n").map((path, i) => (
+              <div key={i} className="flex items-center gap-1.5 text-xs text-gray-300">
+                <svg
+                  className="h-3.5 w-3.5 shrink-0 text-amber-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span className="truncate">{path.split("/").pop()}</span>
+              </div>
+            ))}
+          </div>
         ) : (
           <p
-            className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-gray-300"
+            className={`whitespace-pre-wrap break-words text-xs leading-relaxed text-gray-300 ${
+              clip.content_type === "html" ? "font-sans" : "font-mono"
+            }`}
             data-testid="clip-text"
           >
             {truncateText(clip.text_content || "", 200)}
