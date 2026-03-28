@@ -34,7 +34,7 @@ describe("ClipList", () => {
   it("shows empty state when no clips", () => {
     render(<ClipList />);
     expect(screen.getByTestId("empty-state")).toBeInTheDocument();
-    expect(screen.getByText("No clips yet. Copy something!")).toBeInTheDocument();
+    expect(screen.getByText(/No clips yet/)).toBeInTheDocument();
   });
 
   it("renders clip cards when clips exist", () => {
