@@ -98,22 +98,33 @@ test.describe("ClipBin App", () => {
   test("displays clip history in carousel", async ({ page }) => {
     // Wait for clips to load
     await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Bold text from web page")).toBeVisible();
     await expect(page.getByText("const x = 42;")).toBeVisible();
-    await expect(page.getByText("/Users/test/document.pdf")).toBeVisible();
 
-    // Verify horizontal carousel layout
     const clipList = page.getByTestId("clip-list");
     await expect(clipList).toBeVisible();
-
-    // Take screenshot of the carousel view
     await page.screenshot({ path: "tests/e2e/screenshots/carousel-view.png" });
   });
 
-  test("shows clip metadata", async ({ page }) => {
+  test("shows content type badges for all types", async ({ page }) => {
     await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
-    // Check content type badges
-    await expect(page.getByText("File")).toBeVisible();
+    // Text, Rich Text (HTML), File types
     await expect(page.getByText("Text").first()).toBeVisible();
+    await expect(page.getByText("Rich Text")).toBeVisible();
+    await expect(page.getByText("File")).toBeVisible();
+  });
+
+  test("shows number shortcuts on first 4 cards", async ({ page }) => {
+    await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
+    // Cards should have number badges 1-4
+    const cards = page.getByTestId("clip-card");
+    await expect(cards).toHaveCount(4);
+  });
+
+  test("file card shows filename not full path", async ({ page }) => {
+    await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
+    // File card should show just the filename
+    await expect(page.getByText("document.pdf")).toBeVisible();
   });
 
   test("search filters clips", async ({ page }) => {

@@ -14,6 +14,12 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [animState, setAnimState] = useState<AnimState>("hidden");
 
+  // Initial fetch on mount (for web/E2E testing and first load)
+  useEffect(() => {
+    fetchClips();
+    setAnimState("visible");
+  }, [fetchClips]);
+
   useEffect(() => {
     const unlistenShow = listen("window-will-show", () => {
       fetchClips();
