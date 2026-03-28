@@ -1,8 +1,22 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{TrayIconBuilder, TrayIconEvent},
     App, Manager, WebviewWindow,
 };
+
+/// Timestamp (millis) of the last show action. Used to prevent
+/// immediate blur-hide when the window is freshly shown.
+static LAST_SHOW_TIME: AtomicU64 = AtomicU64::new(0);
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
 
 pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let toggle = MenuItemBuilder::with_id("toggle", "Show/Hide ClipBin").build(app)?;
@@ -32,12 +46,17 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Auto-hide when window loses focus (user clicks outside)
+/// Auto-hide when window loses focus (user clicks outside).
+/// Ignores blur events within 300ms of showing to prevent
+/// the tray-click-show-then-immediate-blur problem.
 pub fn setup_blur_hide(window: &WebviewWindow) {
     let win = window.clone();
     window.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(false) = event {
-            win.hide().ok();
+            let elapsed = now_millis().saturating_sub(LAST_SHOW_TIME.load(Ordering::Relaxed));
+            if elapsed > 300 {
+                win.hide().ok();
+            }
         }
     });
 }
@@ -48,6 +67,7 @@ pub fn toggle_window(app: &tauri::AppHandle) {
             window.hide().ok();
         } else {
             position_at_bottom(app);
+            LAST_SHOW_TIME.store(now_millis(), Ordering::Relaxed);
             window.show().ok();
             window.set_focus().ok();
         }
@@ -89,8 +109,6 @@ fn position_at_bottom(app: &tauri::AppHandle) {
         let panel_height: f64 = 260.0;
         let panel_width: f64 = vis_w - (padding * 2.0);
 
-        // macOS: vis_y is distance from screen bottom to bottom of visible area (above Dock)
-        // Convert to Tauri top-left coords
         let tauri_y = screen_total_height - vis_y - panel_height - padding;
         let tauri_x = vis_x + padding;
 

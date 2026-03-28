@@ -27,10 +27,7 @@
     "security": {
       "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
     },
-    "trayIcon": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true
-    }
+    "trayIcon": null
   },
   "bundle": {
     "active": true,
