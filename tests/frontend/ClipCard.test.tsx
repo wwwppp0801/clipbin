@@ -56,7 +56,7 @@ describe("ClipCard", () => {
 
   it("renders file path clip", () => {
     render(<ClipCard clip={fileClip} isSelected={false} />);
-    expect(screen.getByText("/Users/test/document.pdf")).toBeInTheDocument();
+    expect(screen.getByText("document.pdf")).toBeInTheDocument();
     expect(screen.getByText("File")).toBeInTheDocument();
   });
 
