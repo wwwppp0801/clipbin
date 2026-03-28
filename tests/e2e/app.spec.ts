@@ -232,8 +232,12 @@ test.describe("ClipBin App", () => {
     await expect(page.getByText("4 clips")).toBeVisible();
   });
 
-  test("clear all removes clips", async ({ page }) => {
+  test("clear all removes clips with double-click confirmation", async ({ page }) => {
     await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
+    // First click shows confirmation
+    await page.getByTestId("clear-history").click();
+    await expect(page.getByText("Click again to confirm")).toBeVisible();
+    // Second click actually clears
     await page.getByTestId("clear-history").click();
     // Should show empty state
     await expect(page.getByTestId("empty-state")).toBeVisible({ timeout: 2000 });
