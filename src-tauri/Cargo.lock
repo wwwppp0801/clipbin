@@ -547,6 +547,7 @@ dependencies = [
  "hex",
  "image",
  "log",
+ "objc",
  "serde",
  "serde_json",
  "sha2",

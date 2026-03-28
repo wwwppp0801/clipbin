@@ -85,6 +85,10 @@ pub fn toggle_window(app: &tauri::AppHandle) {
 
 fn show_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        // Remember which app was active before we steal focus
+        #[cfg(target_os = "macos")]
+        crate::paste::remember_frontmost_app();
+
         mark_action();
         position_at_bottom(app);
         window.show().ok();

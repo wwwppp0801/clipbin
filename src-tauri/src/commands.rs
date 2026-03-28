@@ -90,11 +90,17 @@ pub async fn paste_clip(
     state: State<'_, Arc<Database>>,
     id: i64,
 ) -> Result<(), String> {
-    // Hide window first so paste goes to the previous app
+    // 1. Hide our window
     crate::tray::do_hide(&app);
-    // Small delay to let the previous app regain focus
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    // Write to clipboard + simulate Cmd+V
+
+    // 2. Activate the app that was focused before ClipBin opened
+    #[cfg(target_os = "macos")]
+    crate::paste::activate_previous_app();
+
+    // 3. Wait for the previous app to regain focus
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+
+    // 4. Write to clipboard + simulate Cmd+V
     crate::paste::paste_clip(&state, id).await
 }
 

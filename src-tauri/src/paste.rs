@@ -1,10 +1,14 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use crate::db::Database;
 use crate::models::ContentType;
 
 /// Flag to indicate the next clipboard change was caused by us (skip monitoring).
 static SELF_TRIGGERED: AtomicBool = AtomicBool::new(false);
+
+/// PID of the app that was frontmost before ClipBin opened.
+#[cfg(target_os = "macos")]
+static PREVIOUS_APP_PID: AtomicI32 = AtomicI32::new(0);
 
 /// Check and clear the self-triggered flag.
 pub fn was_self_triggered() -> bool {
@@ -19,10 +23,8 @@ pub async fn paste_clip(db: &Database, id: i64) -> Result<(), String> {
         .map_err(|e| e.to_string())?
         .ok_or("Clip not found")?;
 
-    // Mark self-triggered so monitor skips the next clipboard change
     SELF_TRIGGERED.store(true, Ordering::Relaxed);
 
-    // Write content to system clipboard
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
 
     match clip.content_type {
@@ -33,7 +35,6 @@ pub async fn paste_clip(db: &Database, id: i64) -> Result<(), String> {
         }
         ContentType::Image => {
             if let Some(png_data) = &clip.image_data {
-                // Decode PNG back to RGBA for arboard
                 let img = image::load_from_memory(png_data).map_err(|e| e.to_string())?;
                 let rgba = img.to_rgba8();
                 let (w, h) = rgba.dimensions();
@@ -49,42 +50,74 @@ pub async fn paste_clip(db: &Database, id: i64) -> Result<(), String> {
         }
     }
 
-    // Update last_used_at and use_count
     db.touch_clip(id).await.ok();
 
-    // Simulate Cmd+V keypress to paste into the active app
     #[cfg(target_os = "macos")]
     simulate_paste();
 
     Ok(())
 }
 
-/// Simulate Cmd+V using Core Graphics events (macOS).
+/// Remember the frontmost application before ClipBin takes focus.
+#[cfg(target_os = "macos")]
+pub fn remember_frontmost_app() {
+    use objc::runtime::{Class, Object};
+    use objc::{msg_send, sel, sel_impl};
+
+    unsafe {
+        let cls = Class::get("NSWorkspace").unwrap();
+        let workspace: *mut Object = msg_send![cls, sharedWorkspace];
+        let app: *mut Object = msg_send![workspace, frontmostApplication];
+        if !app.is_null() {
+            let pid: i32 = msg_send![app, processIdentifier];
+            PREVIOUS_APP_PID.store(pid, Ordering::Relaxed);
+        }
+    }
+}
+
+/// Activate the previously frontmost application so paste goes to it.
+#[cfg(target_os = "macos")]
+pub fn activate_previous_app() {
+    use objc::runtime::{Class, Object};
+    use objc::{msg_send, sel, sel_impl};
+
+    let pid = PREVIOUS_APP_PID.load(Ordering::Relaxed);
+    if pid == 0 {
+        return;
+    }
+
+    unsafe {
+        let cls = Class::get("NSRunningApplication").unwrap();
+        let app: *mut Object = msg_send![cls, runningApplicationWithProcessIdentifier: pid];
+        if !app.is_null() {
+            // NSApplicationActivateIgnoringOtherApps = 1 << 1 = 2
+            let _: bool = msg_send![app, activateWithOptions: 2u64];
+        }
+    }
+}
+
+/// Simulate Cmd+V using Core Graphics events (same approach as Maccy).
 #[cfg(target_os = "macos")]
 fn simulate_paste() {
     use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation, CGKeyCode};
     use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 
-    // Virtual key code for 'V' on macOS
     const V_KEY: CGKeyCode = 9;
 
-    let source = match CGEventSource::new(CGEventSourceStateID::HIDSystemState) {
+    let source = match CGEventSource::new(CGEventSourceStateID::CombinedSessionState) {
         Ok(s) => s,
         Err(_) => return,
     };
 
-    // Key down
-    if let Ok(event) = CGEvent::new_keyboard_event(source.clone(), V_KEY, true) {
-        event.set_flags(CGEventFlags::CGEventFlagCommand);
-        event.post(CGEventTapLocation::HID);
-    }
+    let cmd_flag = CGEventFlags::CGEventFlagCommand;
 
-    // Small delay between key down and up
-    std::thread::sleep(std::time::Duration::from_millis(20));
-
-    // Key up
-    if let Ok(event) = CGEvent::new_keyboard_event(source, V_KEY, false) {
-        event.set_flags(CGEventFlags::CGEventFlagCommand);
-        event.post(CGEventTapLocation::HID);
+    if let (Ok(down), Ok(up)) = (
+        CGEvent::new_keyboard_event(source.clone(), V_KEY, true),
+        CGEvent::new_keyboard_event(source, V_KEY, false),
+    ) {
+        down.set_flags(cmd_flag);
+        up.set_flags(cmd_flag);
+        down.post(CGEventTapLocation::Session);
+        up.post(CGEventTapLocation::Session);
     }
 }
