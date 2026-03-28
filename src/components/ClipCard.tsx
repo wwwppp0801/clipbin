@@ -83,10 +83,10 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       data-testid="clip-card"
-      className={`group relative flex h-full w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-xl border transition-all ${
+      className={`group relative flex h-full w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-xl border transition-all duration-150 ${
         isSelected
-          ? "border-blue-500/70 bg-gray-800 shadow-lg shadow-blue-500/10"
-          : "border-gray-700/40 bg-gray-800/50 hover:border-gray-600 hover:bg-gray-800/80"
+          ? "border-blue-500/70 bg-gray-800 shadow-lg shadow-blue-500/10 scale-[1.02]"
+          : "border-gray-700/40 bg-gray-800/50 hover:border-gray-600 hover:bg-gray-800/80 hover:scale-[1.01]"
       }`}
     >
       {/* Header: content type + shortcut number */}
