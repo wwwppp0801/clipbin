@@ -39,6 +39,13 @@ export default function ClipList() {
         if (clip) {
           useClipStore.getState().pasteClip(clip.id);
         }
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        // Delete selected clip
+        e.preventDefault();
+        const clip = clips[selectedIndex];
+        if (clip) {
+          useClipStore.getState().deleteClip(clip.id);
+        }
       } else if (e.key === "c" && (e.metaKey || e.ctrlKey)) {
         // Cmd+C: copy selected clip to clipboard without pasting
         e.preventDefault();
