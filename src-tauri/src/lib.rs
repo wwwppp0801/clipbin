@@ -72,11 +72,14 @@ pub fn run() {
 
             // Register global shortcut: Cmd+Shift+V to toggle window
             use tauri_plugin_global_shortcut::ShortcutState;
-            app.global_shortcut().on_shortcut("CmdOrCtrl+Shift+V", move |app, _shortcut, event| {
-                if event.state == ShortcutState::Pressed {
-                    tray::toggle_window(app);
-                }
-            })?;
+            app.global_shortcut().on_shortcut(
+                "CmdOrCtrl+Shift+V",
+                move |app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        tray::toggle_window(app);
+                    }
+                },
+            )?;
 
             Ok(())
         })

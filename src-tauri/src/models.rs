@@ -16,7 +16,7 @@ impl ContentType {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "image" => ContentType::Image,
             "file_path" => ContentType::FilePath,

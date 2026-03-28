@@ -34,9 +34,6 @@ pub async fn search_clips(
 }
 
 #[tauri::command]
-pub async fn delete_clip(
-    state: State<'_, Arc<Database>>,
-    id: i64,
-) -> Result<(), String> {
+pub async fn delete_clip(state: State<'_, Arc<Database>>, id: i64) -> Result<(), String> {
     state.delete_clip(id).await.map_err(|e| e.to_string())
 }

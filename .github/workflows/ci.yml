@@ -10,11 +10,67 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  rust-test:
+  lint:
+    name: Lint & Format
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
+      # ── Rust lint ──
+      - name: Install Rust stable with components
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            src-tauri/target/
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Rust format check
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: Rust clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      # ── Frontend lint ──
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm eslint src/ tests/
+
+      - name: Prettier check
+        run: pnpm format:check
+
+      - name: TypeScript type check
+        run: pnpm tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Rust tests ──
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
@@ -27,17 +83,13 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('src-tauri/Cargo.lock') }}
 
       - name: Run Rust tests
         working-directory: src-tauri
         run: cargo test --all
 
-  frontend-test:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
+      # ── Frontend tests ──
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -55,7 +107,8 @@ jobs:
         run: pnpm test
 
   build:
-    needs: [rust-test, frontend-test]
+    name: Build
+    needs: [lint, test]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,9 +129,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Tauri CLI
-        run: pnpm add -D @tauri-apps/cli
-
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -88,7 +138,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('src-tauri/Cargo.lock') }}
 
       - name: Build Tauri app
         run: pnpm tauri build

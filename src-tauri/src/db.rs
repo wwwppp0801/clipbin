@@ -44,7 +44,7 @@ impl Database {
                 last_used_at TEXT NOT NULL,
                 use_count INTEGER NOT NULL DEFAULT 1,
                 is_pinned INTEGER NOT NULL DEFAULT 0
-            )"
+            )",
         )
         .execute(&self.pool)
         .await?;
@@ -54,7 +54,7 @@ impl Database {
                 text_content,
                 content='clips',
                 content_rowid='id'
-            )"
+            )",
         )
         .execute(&self.pool)
         .await?;
@@ -62,7 +62,7 @@ impl Database {
         sqlx::query(
             "CREATE TRIGGER IF NOT EXISTS clips_ai AFTER INSERT ON clips BEGIN
                 INSERT INTO clips_fts(rowid, text_content) VALUES (new.id, new.text_content);
-            END"
+            END",
         )
         .execute(&self.pool)
         .await?;
@@ -75,11 +75,9 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_clips_content_hash ON clips(content_hash)"
-        )
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_clips_content_hash ON clips(content_hash)")
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }
@@ -120,7 +118,7 @@ impl Database {
         let row = sqlx::query_as::<_, ClipRow>(
             "SELECT id, content_type, text_content, image_data, content_hash, source_app,
                     created_at, last_used_at, use_count, is_pinned
-             FROM clips WHERE content_hash = ? LIMIT 1"
+             FROM clips WHERE content_hash = ? LIMIT 1",
         )
         .bind(hash)
         .fetch_optional(&self.pool)
@@ -133,7 +131,7 @@ impl Database {
         let rows = sqlx::query_as::<_, ClipRow>(
             "SELECT id, content_type, text_content, image_data, content_hash, source_app,
                     created_at, last_used_at, use_count, is_pinned
-             FROM clips ORDER BY last_used_at DESC LIMIT ? OFFSET ?"
+             FROM clips ORDER BY last_used_at DESC LIMIT ? OFFSET ?",
         )
         .bind(limit)
         .bind(offset)
@@ -152,7 +150,7 @@ impl Database {
              INNER JOIN clips_fts f ON c.id = f.rowid
              WHERE clips_fts MATCH ?
              ORDER BY c.last_used_at DESC
-             LIMIT ?"
+             LIMIT ?",
         )
         .bind(&search_query)
         .bind(limit)
@@ -182,11 +180,13 @@ impl Database {
 
     pub async fn touch_clip_by_hash(&self, hash: &str) -> Result<(), sqlx::Error> {
         let now = chrono::Utc::now().to_rfc3339();
-        sqlx::query("UPDATE clips SET last_used_at = ?, use_count = use_count + 1 WHERE content_hash = ?")
-            .bind(&now)
-            .bind(hash)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "UPDATE clips SET last_used_at = ?, use_count = use_count + 1 WHERE content_hash = ?",
+        )
+        .bind(&now)
+        .bind(hash)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -194,7 +194,7 @@ impl Database {
         let row = sqlx::query_as::<_, ClipRow>(
             "SELECT id, content_type, text_content, image_data, content_hash, source_app,
                     created_at, last_used_at, use_count, is_pinned
-             FROM clips WHERE id = ?"
+             FROM clips WHERE id = ?",
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -222,7 +222,7 @@ impl ClipRow {
     fn into_clip(self) -> Clip {
         Clip {
             id: self.id,
-            content_type: ContentType::from_str(&self.content_type),
+            content_type: ContentType::parse(&self.content_type),
             text_content: self.text_content,
             image_data: self.image_data,
             content_hash: self.content_hash,
@@ -256,7 +256,10 @@ mod tests {
     #[tokio::test]
     async fn test_insert_and_retrieve() {
         let db = setup_db().await;
-        let clip = db.insert_clip(make_text_clip("hello world", "hash1")).await.unwrap();
+        let clip = db
+            .insert_clip(make_text_clip("hello world", "hash1"))
+            .await
+            .unwrap();
 
         assert_eq!(clip.text_content.as_deref(), Some("hello world"));
         assert_eq!(clip.content_hash, "hash1");
@@ -270,7 +273,9 @@ mod tests {
     #[tokio::test]
     async fn test_find_by_hash() {
         let db = setup_db().await;
-        db.insert_clip(make_text_clip("test", "unique_hash")).await.unwrap();
+        db.insert_clip(make_text_clip("test", "unique_hash"))
+            .await
+            .unwrap();
 
         let found = db.find_by_hash("unique_hash").await.unwrap();
         assert!(found.is_some());
@@ -283,7 +288,9 @@ mod tests {
     async fn test_get_clips_ordered_by_last_used() {
         let db = setup_db().await;
         db.insert_clip(make_text_clip("first", "h1")).await.unwrap();
-        db.insert_clip(make_text_clip("second", "h2")).await.unwrap();
+        db.insert_clip(make_text_clip("second", "h2"))
+            .await
+            .unwrap();
         db.insert_clip(make_text_clip("third", "h3")).await.unwrap();
 
         let clips = db.get_clips(10, 0).await.unwrap();
@@ -295,9 +302,15 @@ mod tests {
     #[tokio::test]
     async fn test_full_text_search() {
         let db = setup_db().await;
-        db.insert_clip(make_text_clip("hello world", "h1")).await.unwrap();
-        db.insert_clip(make_text_clip("goodbye world", "h2")).await.unwrap();
-        db.insert_clip(make_text_clip("rust programming", "h3")).await.unwrap();
+        db.insert_clip(make_text_clip("hello world", "h1"))
+            .await
+            .unwrap();
+        db.insert_clip(make_text_clip("goodbye world", "h2"))
+            .await
+            .unwrap();
+        db.insert_clip(make_text_clip("rust programming", "h3"))
+            .await
+            .unwrap();
 
         let results = db.search_clips("hello", 10).await.unwrap();
         assert_eq!(results.len(), 1);
@@ -310,7 +323,10 @@ mod tests {
     #[tokio::test]
     async fn test_delete_clip() {
         let db = setup_db().await;
-        let clip = db.insert_clip(make_text_clip("to delete", "hd")).await.unwrap();
+        let clip = db
+            .insert_clip(make_text_clip("to delete", "hd"))
+            .await
+            .unwrap();
 
         db.delete_clip(clip.id).await.unwrap();
         let found = db.get_clip_by_id(clip.id).await.unwrap();
@@ -320,7 +336,10 @@ mod tests {
     #[tokio::test]
     async fn test_touch_updates_use_count() {
         let db = setup_db().await;
-        let clip = db.insert_clip(make_text_clip("touchme", "ht")).await.unwrap();
+        let clip = db
+            .insert_clip(make_text_clip("touchme", "ht"))
+            .await
+            .unwrap();
         assert_eq!(clip.use_count, 1);
 
         db.touch_clip(clip.id).await.unwrap();
@@ -354,7 +373,10 @@ mod tests {
     #[tokio::test]
     async fn test_touch_by_hash() {
         let db = setup_db().await;
-        let clip = db.insert_clip(make_text_clip("byhash", "hash_touch")).await.unwrap();
+        let clip = db
+            .insert_clip(make_text_clip("byhash", "hash_touch"))
+            .await
+            .unwrap();
 
         db.touch_clip_by_hash("hash_touch").await.unwrap();
         let updated = db.get_clip_by_id(clip.id).await.unwrap().unwrap();
