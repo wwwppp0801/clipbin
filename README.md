@@ -14,9 +14,19 @@
 - **Global Hotkey** — `Shift+Cmd+V` to toggle the panel (configurable in settings)
 - **Auto-hide** — Panel dismisses when clicking outside or pressing Escape
 - **Slide Animations** — Smooth entrance/exit animations from the bottom of the screen
-- **Settings** — Configurable hotkey, max clipboard history (default 500)
-- **Menu Bar Icon** — Paperclip tray icon, click to toggle panel
-- **Smart Detection** — Distinguishes text, file paths (verified on disk), and images
+- **Rich Text Detection** — Detects HTML/rich text from web copies (green badge)
+- **Pin Clips** — Right-click → Pin to keep important clips permanently
+- **Source App Tracking** — Shows which app content was copied from
+- **Number Key Shortcuts** — Press 1-9 for instant paste
+- **Cmd+C to Copy** — Copy without pasting, with toast notification
+- **Delete/Backspace** — Remove selected clip
+- **Tab** — Switch focus to search input
+- **Ignored Apps** — Skip clipboard from password managers (1Password, KeePassXC, etc.)
+- **Clear All** — Footer button to wipe history (preserves pinned)
+- **Max Clips Limit** — Auto-delete oldest clips (configurable, default 500)
+- **Settings** — Hotkey, max clips, ignored apps, keyboard shortcuts reference
+- **Menu Bar Icon** — Paperclip template tray icon, auto-adapts to light/dark
+- **Smart Detection** — Distinguishes text, rich text, file paths, and images
 - **Deduplication** — Hash-based dedup, re-copies update timestamp instead of creating duplicates
 
 ## Screenshots
