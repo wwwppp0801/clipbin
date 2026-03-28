@@ -8,6 +8,7 @@ interface SearchBarProps {
 export default function SearchBar({ onOpenSettings }: SearchBarProps) {
   const searchQuery = useClipStore((s) => s.searchQuery);
   const setSearchQuery = useClipStore((s) => s.setSearchQuery);
+  const clipCount = useClipStore((s) => s.clips.length);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -27,7 +28,7 @@ export default function SearchBar({ onOpenSettings }: SearchBarProps) {
   }, []);
 
   return (
-    <div className="flex items-center gap-2 px-3 pt-1 pb-2" data-testid="search-bar">
+    <div className="relative flex items-center gap-2 px-3 pt-1 pb-2" data-testid="search-bar">
       <input
         ref={inputRef}
         type="text"
@@ -36,8 +37,13 @@ export default function SearchBar({ onOpenSettings }: SearchBarProps) {
         defaultValue={searchQuery}
         onChange={handleChange}
         data-testid="search-input"
-        className="h-8 flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder-gray-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+        className="h-8 flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 pr-16 text-sm text-white placeholder-gray-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
       />
+      {searchQuery && (
+        <span className="pointer-events-none absolute right-20 text-[10px] text-gray-500">
+          {clipCount} result{clipCount !== 1 ? "s" : ""}
+        </span>
+      )}
       <button
         onClick={onOpenSettings}
         data-testid="settings-button"

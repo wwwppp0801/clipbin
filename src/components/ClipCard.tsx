@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useClipStore, type ClipItem } from "../stores/clipStore";
-import { formatRelativeTime, truncateText, isUrl } from "../lib/utils";
+import { formatRelativeTime, isUrl } from "../lib/utils";
 
 interface ClipCardProps {
   clip: ClipItem;
