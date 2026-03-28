@@ -68,6 +68,13 @@ export default function ClipList() {
         if (clip) {
           useClipStore.getState().copyClip(clip.id);
         }
+      } else if (e.key === "p" && (e.metaKey || e.ctrlKey)) {
+        // Cmd+P: toggle pin on selected clip
+        e.preventDefault();
+        const clip = clips[selectedIndex];
+        if (clip) {
+          useClipStore.getState().togglePin(clip.id);
+        }
       } else if (e.key >= "1" && e.key <= "9" && !e.metaKey && !e.ctrlKey) {
         // Number keys for quick paste
         const index = parseInt(e.key) - 1;
