@@ -26,6 +26,13 @@ export function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength).trimEnd() + "...";
 }
 
+export function isUrl(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  // Single line URL
+  return !trimmed.includes("\n") && /^https?:\/\/\S+$/.test(trimmed);
+}
+
 export function getContentIcon(contentType: string): string {
   switch (contentType) {
     case "image":

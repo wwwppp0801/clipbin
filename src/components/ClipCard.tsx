@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useClipStore, type ClipItem } from "../stores/clipStore";
-import { formatRelativeTime, truncateText } from "../lib/utils";
+import { formatRelativeTime, truncateText, isUrl } from "../lib/utils";
 
 interface ClipCardProps {
   clip: ClipItem;
@@ -143,6 +143,22 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
                 <span className="truncate">{path.split("/").pop()}</span>
               </div>
             ))}
+          </div>
+        ) : isUrl(clip.text_content) ? (
+          <div className="flex items-center gap-2" data-testid="clip-text">
+            <svg
+              className="h-4 w-4 shrink-0 text-blue-400"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+            </svg>
+            <span className="truncate text-xs text-blue-400">
+              {clip.text_content?.replace(/^https?:\/\//, "")}
+            </span>
           </div>
         ) : (
           <p
