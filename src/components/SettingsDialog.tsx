@@ -105,6 +105,30 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
           />
         </div>
 
+        {/* Keyboard Shortcuts Reference */}
+        <div className="mb-5 rounded-lg border border-gray-700/50 bg-gray-800/50 p-3">
+          <h3 className="mb-2 text-xs font-medium text-gray-400">Keyboard Shortcuts</h3>
+          <div className="grid grid-cols-2 gap-y-1 text-[11px]">
+            <span className="text-gray-500">Toggle panel</span>
+            <span className="text-right text-gray-300">⇧⌘V</span>
+            <span className="text-gray-500">Paste selected</span>
+            <span className="text-right text-gray-300">Enter</span>
+            <span className="text-gray-500">Copy to clipboard</span>
+            <span className="text-right text-gray-300">⌘C</span>
+            <span className="text-gray-500">Quick paste</span>
+            <span className="text-right text-gray-300">1-9</span>
+            <span className="text-gray-500">Navigate</span>
+            <span className="text-right text-gray-300">← →</span>
+            <span className="text-gray-500">Delete clip</span>
+            <span className="text-right text-gray-300">⌫</span>
+            <span className="text-gray-500">Dismiss</span>
+            <span className="text-right text-gray-300">Esc</span>
+          </div>
+        </div>
+
+        {/* About */}
+        <div className="mb-5 text-center text-[10px] text-gray-500">ClipBin v0.2.0</div>
+
         {/* Buttons */}
         <div className="flex justify-end gap-2">
           <button
