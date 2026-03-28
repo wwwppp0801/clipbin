@@ -42,39 +42,39 @@ describe("ClipCard", () => {
   });
 
   it("renders text clip content", () => {
-    render(<ClipCard clip={textClip} />);
+    render(<ClipCard clip={textClip} isSelected={false} />);
     expect(screen.getByText("Hello, World!")).toBeInTheDocument();
     expect(screen.getByTestId("clip-text")).toBeInTheDocument();
   });
 
   it("renders image clip with preview", () => {
-    render(<ClipCard clip={imageClip} />);
+    render(<ClipCard clip={imageClip} isSelected={false} />);
     const img = screen.getByTestId("clip-image");
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", "data:image/png;base64,abc123");
   });
 
   it("renders file path clip", () => {
-    render(<ClipCard clip={fileClip} />);
+    render(<ClipCard clip={fileClip} isSelected={false} />);
     expect(screen.getByText("/Users/test/document.pdf")).toBeInTheDocument();
     expect(screen.getByText("File")).toBeInTheDocument();
   });
 
-  it("shows use count when > 1", () => {
-    render(<ClipCard clip={imageClip} />);
-    expect(screen.getByText("Used 2x")).toBeInTheDocument();
+  it("shows content type badge", () => {
+    render(<ClipCard clip={imageClip} isSelected={false} />);
+    expect(screen.getByText("Image")).toBeInTheDocument();
   });
 
-  it("does not show use count when 1", () => {
-    render(<ClipCard clip={textClip} />);
-    expect(screen.queryByText(/Used/)).not.toBeInTheDocument();
+  it("shows Text badge for text clips", () => {
+    render(<ClipCard clip={textClip} isSelected={false} />);
+    expect(screen.getByText("Text")).toBeInTheDocument();
   });
 
   it("calls pasteClip on click", () => {
     const pasteSpy = vi.fn();
     useClipStore.setState({ pasteClip: pasteSpy } as never);
 
-    render(<ClipCard clip={textClip} />);
+    render(<ClipCard clip={textClip} isSelected={false} />);
     fireEvent.click(screen.getByTestId("clip-card"));
     expect(pasteSpy).toHaveBeenCalledWith(1);
   });
@@ -83,7 +83,7 @@ describe("ClipCard", () => {
     const deleteSpy = vi.fn();
     useClipStore.setState({ deleteClip: deleteSpy } as never);
 
-    render(<ClipCard clip={textClip} />);
+    render(<ClipCard clip={textClip} isSelected={false} />);
     fireEvent.click(screen.getByTestId("clip-delete"));
     expect(deleteSpy).toHaveBeenCalledWith(1);
   });

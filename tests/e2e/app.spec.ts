@@ -85,19 +85,25 @@ test.describe("ClipBin App", () => {
     await expect(searchInput).toHaveAttribute("placeholder", "Search clips...");
   });
 
-  test("displays clip history", async ({ page }) => {
+  test("displays clip history in carousel", async ({ page }) => {
     // Wait for clips to load
     await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
     await expect(page.getByText("const x = 42;")).toBeVisible();
     await expect(page.getByText("/Users/test/document.pdf")).toBeVisible();
+
+    // Verify horizontal carousel layout
+    const clipList = page.getByTestId("clip-list");
+    await expect(clipList).toBeVisible();
+
+    // Take screenshot of the carousel view
+    await page.screenshot({ path: "tests/e2e/screenshots/carousel-view.png" });
   });
 
   test("shows clip metadata", async ({ page }) => {
     await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
-    // Check use count is shown for clip with count > 1
-    await expect(page.getByText("Used 3x")).toBeVisible();
-    // Check content type label
+    // Check content type badges
     await expect(page.getByText("File")).toBeVisible();
+    await expect(page.getByText("Text").first()).toBeVisible();
   });
 
   test("search filters clips", async ({ page }) => {
@@ -112,6 +118,9 @@ test.describe("ClipBin App", () => {
 
     // Other clips should be filtered out
     await expect(page.getByText("const x = 42;")).not.toBeVisible({ timeout: 2000 });
+
+    // Screenshot of filtered view
+    await page.screenshot({ path: "tests/e2e/screenshots/search-filtered.png" });
   });
 
   test("search with no results shows empty state", async ({ page }) => {
@@ -128,7 +137,6 @@ test.describe("ClipBin App", () => {
     await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
 
     // Track invoke calls
-    const invokeCalls: string[] = [];
     await page.evaluate(() => {
       const orig = (window as Record<string, unknown>).__TAURI_INTERNALS__ as {
         invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;

@@ -19,7 +19,7 @@ function App() {
   }, [fetchClips, listenForChanges]);
 
   return (
-    <div className="flex h-screen flex-col bg-gray-900 text-white">
+    <div className="flex h-screen flex-col overflow-hidden rounded-2xl bg-gray-900/95 text-white backdrop-blur-xl">
       <SearchBar />
       <ClipList />
     </div>
