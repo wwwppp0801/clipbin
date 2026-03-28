@@ -41,6 +41,11 @@ pub fn run() {
             // Setup system tray
             tray::setup_tray(app)?;
 
+            // Auto-hide when window loses focus (user clicks outside)
+            if let Some(window) = app.get_webview_window("main") {
+                tray::setup_blur_hide(&window);
+            }
+
             // Start clipboard monitor
             let app_handle = app.handle().clone();
             let monitor_db = db.clone();

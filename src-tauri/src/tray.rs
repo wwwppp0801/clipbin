@@ -1,7 +1,7 @@
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{TrayIconBuilder, TrayIconEvent},
-    App, Manager,
+    App, Manager, WebviewWindow,
 };
 
 pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
@@ -32,6 +32,16 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Auto-hide when window loses focus (user clicks outside)
+pub fn setup_blur_hide(window: &WebviewWindow) {
+    let win = window.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Focused(false) = event {
+            win.hide().ok();
+        }
+    });
+}
+
 pub fn toggle_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible().unwrap_or(false) {
@@ -44,27 +54,71 @@ pub fn toggle_window(app: &tauri::AppHandle) {
     }
 }
 
-/// Position the window at the bottom center of the screen, like Paste app
+/// Position the window at the bottom of the visible screen area (above Dock)
 fn position_at_bottom(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        if let Ok(Some(monitor)) = window.current_monitor() {
-            let screen_size = monitor.size();
-            let screen_pos = monitor.position();
-            let scale = monitor.scale_factor();
+        let scale = window
+            .current_monitor()
+            .ok()
+            .flatten()
+            .map(|m| m.scale_factor())
+            .unwrap_or(2.0);
 
-            // Window spans full screen width with padding
-            let padding: f64 = 20.0;
-            let panel_height: f64 = 260.0;
-            let panel_width: f64 = (screen_size.width as f64 / scale) - (padding * 2.0);
+        let screen_total_height = window
+            .current_monitor()
+            .ok()
+            .flatten()
+            .map(|m| m.size().height as f64 / scale)
+            .unwrap_or(900.0);
 
-            let x = screen_pos.x as f64 + padding;
-            let y =
-                screen_pos.y as f64 + (screen_size.height as f64 / scale) - panel_height - padding;
+        #[cfg(target_os = "macos")]
+        let (vis_x, vis_y, vis_w, _vis_h) = macos_visible_frame();
 
-            window
-                .set_size(tauri::LogicalSize::new(panel_width, panel_height))
-                .ok();
-            window.set_position(tauri::LogicalPosition::new(x, y)).ok();
+        #[cfg(not(target_os = "macos"))]
+        let (vis_x, vis_y, vis_w, _vis_h) = {
+            let w = window
+                .current_monitor()
+                .ok()
+                .flatten()
+                .map(|m| m.size().width as f64 / scale)
+                .unwrap_or(1440.0);
+            (0.0, 0.0, w, screen_total_height)
+        };
+
+        let padding: f64 = 12.0;
+        let panel_height: f64 = 260.0;
+        let panel_width: f64 = vis_w - (padding * 2.0);
+
+        // macOS: vis_y is distance from screen bottom to bottom of visible area (above Dock)
+        // Convert to Tauri top-left coords
+        let tauri_y = screen_total_height - vis_y - panel_height - padding;
+        let tauri_x = vis_x + padding;
+
+        window
+            .set_size(tauri::LogicalSize::new(panel_width, panel_height))
+            .ok();
+        window
+            .set_position(tauri::LogicalPosition::new(tauri_x, tauri_y))
+            .ok();
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn macos_visible_frame() -> (f64, f64, f64, f64) {
+    use cocoa::appkit::NSScreen;
+    use cocoa::base::nil;
+
+    unsafe {
+        let screen = NSScreen::mainScreen(nil);
+        if screen != nil {
+            let frame = NSScreen::visibleFrame(screen);
+            return (
+                frame.origin.x,
+                frame.origin.y,
+                frame.size.width,
+                frame.size.height,
+            );
         }
     }
+    (0.0, 0.0, 1440.0, 900.0)
 }
