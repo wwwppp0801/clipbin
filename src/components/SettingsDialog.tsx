@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 
 interface Settings {
   hotkey: string;
@@ -16,6 +17,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
   const [hotkey, setHotkey] = useState("Shift+CmdOrCtrl+V");
   const [maxClips, setMaxClips] = useState(500);
   const [ignoredApps, setIgnoredApps] = useState("");
+  const [launchAtLogin, setLaunchAtLogin] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [recordingHotkey, setRecordingHotkey] = useState(false);
 
@@ -26,6 +28,9 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
         setMaxClips(s.max_clips);
         setIgnoredApps((s.ignored_apps || []).join(", "));
       });
+      isEnabled()
+        .then(setLaunchAtLogin)
+        .catch(() => {});
     }
   }, [isOpen]);
 
@@ -59,6 +64,16 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
         .map((s) => s.trim())
         .filter(Boolean);
       await invoke("save_settings", { hotkey, maxClips, ignoredApps: ignoredAppsList });
+      // Update autostart
+      try {
+        if (launchAtLogin) {
+          await enable();
+        } else {
+          await disable();
+        }
+      } catch {
+        // Autostart may not work in dev mode
+      }
       onClose();
     } catch (err) {
       console.error("Failed to save settings:", err);
@@ -110,6 +125,23 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
             data-testid="max-clips-input"
             className="h-9 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 text-sm text-white outline-none focus:border-blue-500"
           />
+        </div>
+
+        {/* Launch at Login */}
+        <div className="mb-4 flex items-center justify-between">
+          <label className="text-xs font-medium text-gray-400">Launch at Login</label>
+          <button
+            onClick={() => setLaunchAtLogin(!launchAtLogin)}
+            className={`relative h-5 w-9 rounded-full transition-colors ${
+              launchAtLogin ? "bg-blue-600" : "bg-gray-700"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                launchAtLogin ? "translate-x-4" : ""
+              }`}
+            />
+          </button>
         </div>
 
         {/* Ignored Apps */}
