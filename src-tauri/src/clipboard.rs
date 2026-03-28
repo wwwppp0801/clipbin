@@ -148,6 +148,36 @@ fn read_file_urls_from_pasteboard() -> Option<Vec<String>> {
     }
 }
 
+/// Get the name of the currently frontmost application.
+#[cfg(target_os = "macos")]
+pub fn get_frontmost_app_name() -> Option<String> {
+    use objc::runtime::{Class, Object};
+    use objc::{msg_send, sel, sel_impl};
+
+    unsafe {
+        let cls = Class::get("NSWorkspace")?;
+        let workspace: *mut Object = msg_send![cls, sharedWorkspace];
+        let app: *mut Object = msg_send![workspace, frontmostApplication];
+        if app.is_null() {
+            return None;
+        }
+        let name: *mut Object = msg_send![app, localizedName];
+        if name.is_null() {
+            return None;
+        }
+        let cstr: *const std::os::raw::c_char = msg_send![name, UTF8String];
+        if cstr.is_null() {
+            return None;
+        }
+        Some(std::ffi::CStr::from_ptr(cstr).to_string_lossy().to_string())
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn get_frontmost_app_name() -> Option<String> {
+    None
+}
+
 fn encode_rgba_to_png(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
     use image::{ImageBuffer, RgbaImage};
     use std::io::Cursor;
@@ -196,7 +226,7 @@ impl ClipboardContent {
         hex::encode(hasher.finalize())
     }
 
-    pub fn into_new_clip(self) -> NewClip {
+    pub fn into_new_clip(self, source_app: Option<String>) -> NewClip {
         let hash = self.compute_hash();
         match self {
             ClipboardContent::Text(text) => NewClip {
@@ -204,24 +234,28 @@ impl ClipboardContent {
                 text_content: Some(text),
                 image_data: None,
                 content_hash: hash,
+                source_app,
             },
             ClipboardContent::Html { plain, .. } => NewClip {
                 content_type: ContentType::Html,
                 text_content: Some(plain),
                 image_data: None,
                 content_hash: hash,
+                source_app,
             },
             ClipboardContent::Image(data) => NewClip {
                 content_type: ContentType::Image,
                 text_content: None,
                 image_data: Some(data),
                 content_hash: hash,
+                source_app,
             },
             ClipboardContent::FilePath(path) => NewClip {
                 content_type: ContentType::FilePath,
                 text_content: Some(path),
                 image_data: None,
                 content_hash: hash,
+                source_app,
             },
         }
     }
@@ -428,7 +462,7 @@ mod tests {
     #[test]
     fn test_into_new_clip_text() {
         let content = ClipboardContent::Text("hello".to_string());
-        let clip = content.into_new_clip();
+        let clip = content.into_new_clip(None);
         assert_eq!(clip.content_type, ContentType::Text);
         assert_eq!(clip.text_content.as_deref(), Some("hello"));
         assert!(clip.image_data.is_none());
@@ -437,7 +471,7 @@ mod tests {
     #[test]
     fn test_into_new_clip_image() {
         let content = ClipboardContent::Image(vec![1, 2, 3]);
-        let clip = content.into_new_clip();
+        let clip = content.into_new_clip(None);
         assert_eq!(clip.content_type, ContentType::Image);
         assert!(clip.text_content.is_none());
         assert_eq!(clip.image_data, Some(vec![1, 2, 3]));
@@ -446,7 +480,7 @@ mod tests {
     #[test]
     fn test_into_new_clip_filepath() {
         let content = ClipboardContent::FilePath("/tmp/test.txt".to_string());
-        let clip = content.into_new_clip();
+        let clip = content.into_new_clip(None);
         assert_eq!(clip.content_type, ContentType::FilePath);
         assert_eq!(clip.text_content.as_deref(), Some("/tmp/test.txt"));
     }
@@ -550,7 +584,7 @@ mod tests {
             html: "<p>test</p>".to_string(),
             plain: "test".to_string(),
         };
-        let clip = content.into_new_clip();
+        let clip = content.into_new_clip(None);
         assert_eq!(clip.content_type, ContentType::Html);
         assert_eq!(clip.text_content.as_deref(), Some("test"));
     }

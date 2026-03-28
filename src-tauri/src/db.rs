@@ -87,14 +87,15 @@ impl Database {
         let content_type_str = clip.content_type.as_str();
 
         let id = sqlx::query_scalar::<_, i64>(
-            "INSERT INTO clips (content_type, text_content, image_data, content_hash, created_at, last_used_at)
-             VALUES (?, ?, ?, ?, ?, ?)
-             RETURNING id"
+            "INSERT INTO clips (content_type, text_content, image_data, content_hash, source_app, created_at, last_used_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             RETURNING id",
         )
         .bind(content_type_str)
         .bind(&clip.text_content)
         .bind(&clip.image_data)
         .bind(&clip.content_hash)
+        .bind(&clip.source_app)
         .bind(&now)
         .bind(&now)
         .fetch_one(&self.pool)
@@ -106,7 +107,7 @@ impl Database {
             text_content: clip.text_content,
             image_data: clip.image_data,
             content_hash: clip.content_hash,
-            source_app: None,
+            source_app: clip.source_app,
             created_at: now.clone(),
             last_used_at: now,
             use_count: 1,
@@ -283,6 +284,7 @@ mod tests {
             text_content: Some(text.to_string()),
             image_data: None,
             content_hash: hash.to_string(),
+            source_app: None,
         }
     }
 

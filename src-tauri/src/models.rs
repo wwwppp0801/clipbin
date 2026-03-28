@@ -48,6 +48,7 @@ pub struct NewClip {
     pub text_content: Option<String>,
     pub image_data: Option<Vec<u8>>,
     pub content_hash: String,
+    pub source_app: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +57,7 @@ pub struct ClipDto {
     pub content_type: String,
     pub text_content: Option<String>,
     pub image_preview: Option<String>,
+    pub source_app: Option<String>,
     pub created_at: String,
     pub last_used_at: String,
     pub use_count: i64,
@@ -75,6 +77,7 @@ impl Clip {
             content_type: self.content_type.as_str().to_string(),
             text_content: self.text_content.clone(),
             image_preview,
+            source_app: self.source_app.clone(),
             created_at: self.created_at.clone(),
             last_used_at: self.last_used_at.clone(),
             use_count: self.use_count,

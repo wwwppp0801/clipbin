@@ -7,6 +7,7 @@ export interface ClipItem {
   content_type: "text" | "html" | "image" | "file_path";
   text_content: string | null;
   image_preview: string | null;
+  source_app: string | null;
   created_at: string;
   last_used_at: string;
   use_count: number;

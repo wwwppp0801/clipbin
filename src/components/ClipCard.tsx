@@ -95,7 +95,11 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
         </div>
         <div className="flex items-center gap-1">
           {clip.is_pinned && <span className="text-[10px] text-yellow-500">📌</span>}
-          <span className="text-[10px] text-gray-500">{formatRelativeTime(clip.created_at)}</span>
+          <div className="flex items-center gap-1 text-[10px] text-gray-500">
+            {clip.source_app && <span className="max-w-[60px] truncate">{clip.source_app}</span>}
+            {clip.source_app && <span>·</span>}
+            <span>{formatRelativeTime(clip.created_at)}</span>
+          </div>
         </div>
       </div>
 

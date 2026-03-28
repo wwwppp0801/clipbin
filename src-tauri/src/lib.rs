@@ -66,7 +66,8 @@ pub fn run() {
                         if paste::was_self_triggered() {
                             continue;
                         }
-                        let new_clip = content.into_new_clip();
+                        let source = clipboard::get_frontmost_app_name();
+                        let new_clip = content.into_new_clip(source);
                         let hash = new_clip.content_hash.clone();
                         let db = monitor_db.clone();
                         let handle = app_handle.clone();
