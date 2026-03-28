@@ -72,7 +72,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
-        className="w-[360px] rounded-2xl border border-gray-700/50 bg-gray-900 p-5 shadow-2xl"
+        className="max-h-[80vh] w-[360px] overflow-y-auto rounded-2xl border border-gray-700/50 bg-gray-900 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         data-testid="settings-dialog"
       >
