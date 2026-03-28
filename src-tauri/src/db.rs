@@ -131,7 +131,7 @@ impl Database {
         let rows = sqlx::query_as::<_, ClipRow>(
             "SELECT id, content_type, text_content, image_data, content_hash, source_app,
                     created_at, last_used_at, use_count, is_pinned
-             FROM clips ORDER BY last_used_at DESC LIMIT ? OFFSET ?",
+             FROM clips ORDER BY is_pinned DESC, last_used_at DESC LIMIT ? OFFSET ?",
         )
         .bind(limit)
         .bind(offset)
@@ -166,6 +166,23 @@ impl Database {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    pub async fn clear_unpinned(&self) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM clips WHERE is_pinned = 0")
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn toggle_pin(&self, id: i64) -> Result<bool, sqlx::Error> {
+        let new_val = sqlx::query_scalar::<_, bool>(
+            "UPDATE clips SET is_pinned = NOT is_pinned WHERE id = ? RETURNING is_pinned",
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(new_val)
     }
 
     /// Delete oldest clips (by last_used_at) that exceed the max limit.

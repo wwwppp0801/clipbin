@@ -110,6 +110,8 @@ pub fn run() {
             commands::search_clips,
             commands::delete_clip,
             commands::paste_clip,
+            commands::toggle_pin,
+            commands::clear_history,
             commands::get_settings,
             commands::save_settings,
             commands::do_hide_window,

@@ -18,6 +18,7 @@ const TYPE_COLORS: Record<string, string> = {
 export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardProps) {
   const pasteClip = useClipStore((s) => s.pasteClip);
   const deleteClip = useClipStore((s) => s.deleteClip);
+  const togglePin = useClipStore((s) => s.togglePin);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -92,7 +93,10 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
             {typeLabel}
           </span>
         </div>
-        <span className="text-[10px] text-gray-500">{formatRelativeTime(clip.created_at)}</span>
+        <div className="flex items-center gap-1">
+          {clip.is_pinned && <span className="text-[10px] text-yellow-500">📌</span>}
+          <span className="text-[10px] text-gray-500">{formatRelativeTime(clip.created_at)}</span>
+        </div>
       </div>
 
       {/* Content preview */}
@@ -178,6 +182,15 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
             data-testid="ctx-paste-plain"
           >
             Paste as Plain Text
+          </button>
+          <button
+            onClick={() => {
+              setContextMenu(null);
+              togglePin(clip.id);
+            }}
+            className="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-200 hover:bg-gray-700"
+          >
+            {clip.is_pinned ? "Unpin" : "Pin"}
           </button>
           <div className="my-1 border-t border-gray-700" />
           <button

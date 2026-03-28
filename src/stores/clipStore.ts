@@ -23,6 +23,8 @@ interface ClipStore {
   searchClips: (query: string) => Promise<void>;
   deleteClip: (id: number) => Promise<void>;
   pasteClip: (id: number) => Promise<void>;
+  togglePin: (id: number) => Promise<void>;
+  clearHistory: () => Promise<void>;
   addClip: (clip: ClipItem) => void;
   listenForChanges: () => Promise<UnlistenFn>;
 }
@@ -76,7 +78,29 @@ export const useClipStore = create<ClipStore>((set, get) => ({
     try {
       await invoke("paste_clip", { id });
     } catch {
-      // paste_clip may not be implemented yet
+      // silently fail
+    }
+  },
+
+  togglePin: async (id: number) => {
+    try {
+      const newPinned = await invoke<boolean>("toggle_pin", { id });
+      set((state) => ({
+        clips: state.clips.map((c) => (c.id === id ? { ...c, is_pinned: newPinned } : c)),
+      }));
+    } catch {
+      // silently fail
+    }
+  },
+
+  clearHistory: async () => {
+    try {
+      await invoke("clear_history");
+      set((state) => ({
+        clips: state.clips.filter((c) => c.is_pinned),
+      }));
+    } catch {
+      // silently fail
     }
   },
 

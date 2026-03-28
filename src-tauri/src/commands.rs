@@ -85,6 +85,16 @@ pub async fn save_settings(
 }
 
 #[tauri::command]
+pub async fn toggle_pin(state: State<'_, Arc<Database>>, id: i64) -> Result<bool, String> {
+    state.toggle_pin(id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn clear_history(state: State<'_, Arc<Database>>) -> Result<(), String> {
+    state.clear_unpinned().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn paste_clip(
     app: tauri::AppHandle,
     state: State<'_, Arc<Database>>,
