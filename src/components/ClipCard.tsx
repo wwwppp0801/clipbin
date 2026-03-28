@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useClipStore, type ClipItem } from "../stores/clipStore";
-import { formatRelativeTime, isUrl } from "../lib/utils";
+import { formatRelativeTime, isUrl, isJson } from "../lib/utils";
 
 interface ClipCardProps {
   clip: ClipItem;
@@ -74,8 +74,11 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
     image: "Image",
     file_path: "File",
   };
-  const typeLabel = TYPE_LABELS[clip.content_type] || "Text";
-  const colorClass = TYPE_COLORS[clip.content_type] || TYPE_COLORS.text;
+  const isJsonContent = clip.content_type === "text" && isJson(clip.text_content);
+  const typeLabel = isJsonContent ? "JSON" : TYPE_LABELS[clip.content_type] || "Text";
+  const colorClass = isJsonContent
+    ? "bg-orange-500/20 text-orange-400"
+    : TYPE_COLORS[clip.content_type] || TYPE_COLORS.text;
 
   return (
     <div

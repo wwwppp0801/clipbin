@@ -26,6 +26,12 @@ export function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength).trimEnd() + "...";
 }
 
+export function isJson(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  return (trimmed.startsWith("{") || trimmed.startsWith("[")) && trimmed.length > 2;
+}
+
 export function isUrl(text: string | null | undefined): boolean {
   if (!text) return false;
   const trimmed = text.trim();
