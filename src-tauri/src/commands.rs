@@ -85,6 +85,20 @@ pub async fn save_settings(
 }
 
 #[tauri::command]
+pub async fn paste_clip(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<Database>>,
+    id: i64,
+) -> Result<(), String> {
+    // Hide window first so paste goes to the previous app
+    crate::tray::do_hide(&app);
+    // Small delay to let the previous app regain focus
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    // Write to clipboard + simulate Cmd+V
+    crate::paste::paste_clip(&state, id).await
+}
+
+#[tauri::command]
 pub async fn do_hide_window(app: tauri::AppHandle) -> Result<(), String> {
     crate::tray::do_hide(&app);
     Ok(())

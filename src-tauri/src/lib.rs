@@ -2,6 +2,7 @@ pub mod clipboard;
 pub mod commands;
 pub mod db;
 pub mod models;
+pub mod paste;
 pub mod settings;
 pub mod tray;
 
@@ -60,6 +61,10 @@ pub fn run() {
                 let mut monitor = ClipboardMonitor::new(reader);
                 loop {
                     if let Some(content) = monitor.check() {
+                        // Skip if this change was triggered by our own paste action
+                        if paste::was_self_triggered() {
+                            continue;
+                        }
                         let new_clip = content.into_new_clip();
                         let hash = new_clip.content_hash.clone();
                         let db = monitor_db.clone();
@@ -99,6 +104,7 @@ pub fn run() {
             commands::get_clips,
             commands::search_clips,
             commands::delete_clip,
+            commands::paste_clip,
             commands::get_settings,
             commands::save_settings,
             commands::do_hide_window,

@@ -31,10 +31,11 @@ base64 = "0.22"
 log = "0.4"
 env_logger = "0.11"
 anyhow = "1"
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = "0.25"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26"
+core-graphics = "0.24"
 
 [dev-dependencies]
 tempfile = "3"
