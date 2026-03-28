@@ -89,6 +89,13 @@ export default function ClipList() {
           e.preventDefault();
           useClipStore.getState().pasteClip(clips[index].id);
         }
+      } else if (e.key === "?" && e.shiftKey) {
+        // Show keyboard shortcuts (open settings)
+        e.preventDefault();
+        const settingsBtn = document.querySelector(
+          '[data-testid="settings-button"]',
+        ) as HTMLElement;
+        settingsBtn?.click();
       } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
         // Printable character — auto-focus search and type there
         const input = document.querySelector('[data-testid="search-input"]') as HTMLInputElement;
