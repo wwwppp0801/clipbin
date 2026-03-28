@@ -65,12 +65,28 @@ export default function ClipList() {
   }
 
   if (clips.length === 0) {
+    const searchQuery = useClipStore.getState().searchQuery;
     return (
       <div
-        className="flex flex-1 items-center justify-center text-sm text-gray-500"
+        className="flex flex-1 flex-col items-center justify-center gap-2 text-gray-500"
         data-testid="empty-state"
       >
-        No clips yet. Copy something!
+        <svg
+          className="h-8 w-8 text-gray-600"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" />
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+        </svg>
+        <span className="text-sm">
+          {searchQuery ? "No matching clips" : "No clips yet — copy something!"}
+        </span>
+        {!searchQuery && (
+          <span className="text-xs text-gray-600">Press ⇧⌘V to open after copying</span>
+        )}
       </div>
     );
   }
