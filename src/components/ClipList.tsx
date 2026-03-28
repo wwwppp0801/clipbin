@@ -142,20 +142,24 @@ export default function ClipList() {
   }
 
   return (
-    <div
-      ref={scrollRef}
-      className="flex flex-1 items-stretch gap-2.5 overflow-x-auto px-3 pb-3 scrollbar-hide"
-      data-testid="clip-list"
-      onWheel={handleWheel}
-    >
-      {clips.map((clip, index) => (
-        <ClipCard
-          key={clip.id}
-          clip={clip}
-          isSelected={index === selectedIndex}
-          shortcutNumber={index < 9 ? index + 1 : undefined}
-        />
-      ))}
+    <div className="relative flex-1">
+      {/* Right fade overlay to hint more clips */}
+      <div className="pointer-events-none absolute top-0 right-0 z-10 h-full w-8 bg-gradient-to-l from-gray-900/80 to-transparent" />
+      <div
+        ref={scrollRef}
+        className="flex h-full items-stretch gap-2.5 overflow-x-auto px-3 pb-3 scrollbar-hide"
+        data-testid="clip-list"
+        onWheel={handleWheel}
+      >
+        {clips.map((clip, index) => (
+          <ClipCard
+            key={clip.id}
+            clip={clip}
+            isSelected={index === selectedIndex}
+            shortcutNumber={index < 9 ? index + 1 : undefined}
+          />
+        ))}
+      </div>
     </div>
   );
 }
