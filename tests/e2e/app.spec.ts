@@ -250,4 +250,14 @@ test.describe("ClipBin App", () => {
     // Should show empty state
     await expect(page.getByTestId("empty-state")).toBeVisible({ timeout: 2000 });
   });
+
+  test("right-click shows context menu with pin option", async ({ page }) => {
+    await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
+    const firstCard = page.getByTestId("clip-card").first();
+    await firstCard.click({ button: "right" });
+    await expect(page.getByTestId("context-menu")).toBeVisible();
+    await expect(page.getByText("Pin")).toBeVisible();
+    await expect(page.getByTestId("ctx-paste-original")).toBeVisible();
+    await expect(page.getByTestId("ctx-delete")).toBeVisible();
+  });
 });
