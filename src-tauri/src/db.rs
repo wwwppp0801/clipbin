@@ -435,4 +435,70 @@ mod tests {
         let remaining = db.get_clips(100, 0).await.unwrap();
         assert_eq!(remaining.len(), 5);
     }
+
+    #[tokio::test]
+    async fn test_toggle_pin() {
+        let db = setup_db().await;
+        let clip = db
+            .insert_clip(make_text_clip("pin me", "hpin"))
+            .await
+            .unwrap();
+        assert!(!clip.is_pinned);
+
+        let pinned = db.toggle_pin(clip.id).await.unwrap();
+        assert!(pinned);
+
+        let updated = db.get_clip_by_id(clip.id).await.unwrap().unwrap();
+        assert!(updated.is_pinned);
+
+        let unpinned = db.toggle_pin(clip.id).await.unwrap();
+        assert!(!unpinned);
+    }
+
+    #[tokio::test]
+    async fn test_clear_unpinned() {
+        let db = setup_db().await;
+        let clip1 = db
+            .insert_clip(make_text_clip("normal", "hc1"))
+            .await
+            .unwrap();
+        let clip2 = db
+            .insert_clip(make_text_clip("pinned", "hc2"))
+            .await
+            .unwrap();
+        db.toggle_pin(clip2.id).await.unwrap();
+        db.insert_clip(make_text_clip("normal2", "hc3"))
+            .await
+            .unwrap();
+
+        db.clear_unpinned().await.unwrap();
+
+        let remaining = db.get_clips(100, 0).await.unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, clip2.id);
+        assert!(remaining[0].is_pinned);
+        // clip1 should be gone
+        assert!(db.get_clip_by_id(clip1.id).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_pinned_clips_sorted_first() {
+        let db = setup_db().await;
+        db.insert_clip(make_text_clip("old", "hs1")).await.unwrap();
+        let clip2 = db
+            .insert_clip(make_text_clip("pinned", "hs2"))
+            .await
+            .unwrap();
+        db.insert_clip(make_text_clip("newest", "hs3"))
+            .await
+            .unwrap();
+
+        // Pin the middle clip
+        db.toggle_pin(clip2.id).await.unwrap();
+
+        let clips = db.get_clips(10, 0).await.unwrap();
+        // Pinned should be first
+        assert_eq!(clips[0].id, clip2.id);
+        assert!(clips[0].is_pinned);
+    }
 }
