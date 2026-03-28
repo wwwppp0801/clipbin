@@ -162,12 +162,12 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
           </div>
         ) : (
           <p
-            className={`whitespace-pre-wrap break-words text-xs leading-relaxed text-gray-300 ${
+            className={`line-clamp-6 whitespace-pre-wrap break-words text-xs leading-relaxed text-gray-300 ${
               clip.content_type === "html" ? "font-sans" : "font-mono"
             }`}
             data-testid="clip-text"
           >
-            {truncateText(clip.text_content || "", 200)}
+            {clip.text_content}
           </p>
         )}
       </div>
