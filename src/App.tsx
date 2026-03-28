@@ -6,15 +6,14 @@ import ClipList from "./components/ClipList";
 import SettingsDialog from "./components/SettingsDialog";
 import { useClipStore } from "./stores/clipStore";
 
+type AnimState = "entering" | "exiting" | "visible" | "hidden";
+
 function App() {
   const fetchClips = useClipStore((s) => s.fetchClips);
   const listenForChanges = useClipStore((s) => s.listenForChanges);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [animState, setAnimState] = useState<"entering" | "exiting" | "visible" | "hidden">(
-    "hidden",
-  );
+  const [animState, setAnimState] = useState<AnimState>("hidden");
 
-  // Listen for show/hide events from Rust
   useEffect(() => {
     const unlistenShow = listen("window-will-show", () => {
       fetchClips();
@@ -23,7 +22,6 @@ function App() {
 
     const unlistenHide = listen("window-will-hide", () => {
       setAnimState("exiting");
-      // After exit animation completes, tell Rust to actually hide
       setTimeout(() => {
         invoke("do_hide_window").catch(() => {});
         setAnimState("hidden");
@@ -36,14 +34,14 @@ function App() {
     };
   }, [fetchClips]);
 
-  // When entrance animation ends, mark as visible
   const handleAnimationEnd = useCallback(() => {
     if (animState === "entering") {
       setAnimState("visible");
+      // Tell Rust the entrance animation is done — unlock input
+      invoke("animation_done").catch(() => {});
     }
   }, [animState]);
 
-  // Listen for clipboard changes
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listenForChanges().then((fn) => {

@@ -102,6 +102,7 @@ pub fn run() {
             commands::get_settings,
             commands::save_settings,
             commands::do_hide_window,
+            commands::animation_done,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ClipBin");

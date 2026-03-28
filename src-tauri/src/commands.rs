@@ -89,3 +89,9 @@ pub async fn do_hide_window(app: tauri::AppHandle) -> Result<(), String> {
     crate::tray::do_hide(&app);
     Ok(())
 }
+
+#[tauri::command]
+pub async fn animation_done() -> Result<(), String> {
+    crate::tray::animation_done();
+    Ok(())
+}

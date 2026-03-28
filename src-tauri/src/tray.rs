@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tauri::{
@@ -9,6 +9,9 @@ use tauri::{
 
 /// Timestamp (millis) of the last show action.
 static LAST_SHOW_TIME: AtomicU64 = AtomicU64::new(0);
+
+/// True while an animation is playing. All inputs are ignored during this time.
+static ANIMATING: AtomicBool = AtomicBool::new(false);
 
 fn now_millis() -> u64 {
     SystemTime::now()
@@ -50,6 +53,10 @@ pub fn setup_blur_hide(window: &WebviewWindow) {
     let win_handle = window.app_handle().clone();
     window.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(false) = event {
+            // Ignore during animation
+            if ANIMATING.load(Ordering::Relaxed) {
+                return;
+            }
             let elapsed = now_millis().saturating_sub(LAST_SHOW_TIME.load(Ordering::Relaxed));
             if elapsed > 500 {
                 request_hide(&win_handle);
@@ -59,6 +66,11 @@ pub fn setup_blur_hide(window: &WebviewWindow) {
 }
 
 pub fn toggle_window(app: &tauri::AppHandle) {
+    // Ignore during animation
+    if ANIMATING.load(Ordering::Relaxed) {
+        return;
+    }
+
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible().unwrap_or(false) {
             request_hide(app);
@@ -71,26 +83,34 @@ pub fn toggle_window(app: &tauri::AppHandle) {
 /// Show window with entrance animation
 fn show_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        ANIMATING.store(true, Ordering::Relaxed);
         position_at_bottom(app);
         LAST_SHOW_TIME.store(now_millis(), Ordering::Relaxed);
         window.show().ok();
         window.set_focus().ok();
-        // Tell frontend to play entrance animation
         app.emit("window-will-show", ()).ok();
     }
 }
 
 /// Request hide — tell frontend to play exit animation.
-/// Frontend will call do_hide_window() when animation completes.
 fn request_hide(app: &tauri::AppHandle) {
+    ANIMATING.store(true, Ordering::Relaxed);
     app.emit("window-will-hide", ()).ok();
 }
 
-/// Actually hide the window (called by frontend after exit animation)
+/// Actually hide the window (called by frontend after exit animation).
+/// Also clears the animation lock.
 pub fn do_hide(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         window.hide().ok();
     }
+    ANIMATING.store(false, Ordering::Relaxed);
+}
+
+/// Called by frontend when entrance animation finishes.
+/// Clears the animation lock so blur/hotkey work again.
+pub fn animation_done() {
+    ANIMATING.store(false, Ordering::Relaxed);
 }
 
 /// Position the window at the bottom of the visible screen area (above Dock)
