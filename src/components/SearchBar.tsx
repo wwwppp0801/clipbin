@@ -32,6 +32,7 @@ export default function SearchBar({ onOpenSettings }: SearchBarProps) {
         ref={inputRef}
         type="text"
         placeholder="Search clips..."
+        aria-label="Search clipboard history"
         defaultValue={searchQuery}
         onChange={handleChange}
         data-testid="search-input"
@@ -42,6 +43,7 @@ export default function SearchBar({ onOpenSettings }: SearchBarProps) {
         data-testid="settings-button"
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
         title="Settings"
+        aria-label="Open settings"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

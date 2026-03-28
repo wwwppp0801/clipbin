@@ -178,6 +178,7 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
         data-testid="clip-delete"
         className="absolute top-1.5 right-1.5 rounded-full bg-black/60 p-1 text-gray-400 opacity-0 backdrop-blur-sm transition-opacity hover:text-red-400 group-hover:opacity-100"
         title="Delete"
+        aria-label="Delete clip"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
