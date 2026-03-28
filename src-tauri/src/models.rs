@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ContentType {
     Text,
+    Html,
     Image,
     FilePath,
 }
@@ -11,6 +12,7 @@ impl ContentType {
     pub fn as_str(&self) -> &'static str {
         match self {
             ContentType::Text => "text",
+            ContentType::Html => "html",
             ContentType::Image => "image",
             ContentType::FilePath => "file_path",
         }
@@ -18,6 +20,7 @@ impl ContentType {
 
     pub fn parse(s: &str) -> Self {
         match s {
+            "html" => ContentType::Html,
             "image" => ContentType::Image,
             "file_path" => ContentType::FilePath,
             _ => ContentType::Text,

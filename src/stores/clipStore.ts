@@ -4,7 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export interface ClipItem {
   id: number;
-  content_type: "text" | "image" | "file_path";
+  content_type: "text" | "html" | "image" | "file_path";
   text_content: string | null;
   image_preview: string | null;
   created_at: string;

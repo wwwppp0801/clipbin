@@ -9,6 +9,7 @@ interface ClipCardProps {
 
 const TYPE_COLORS: Record<string, string> = {
   text: "bg-blue-500/20 text-blue-400",
+  html: "bg-green-500/20 text-green-400",
   image: "bg-purple-500/20 text-purple-400",
   file_path: "bg-amber-500/20 text-amber-400",
 };
@@ -58,8 +59,13 @@ export default function ClipCard({ clip, isSelected }: ClipCardProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [contextMenu]);
 
-  const typeLabel =
-    clip.content_type === "file_path" ? "File" : clip.content_type === "image" ? "Image" : "Text";
+  const TYPE_LABELS: Record<string, string> = {
+    text: "Text",
+    html: "Rich Text",
+    image: "Image",
+    file_path: "File",
+  };
+  const typeLabel = TYPE_LABELS[clip.content_type] || "Text";
   const colorClass = TYPE_COLORS[clip.content_type] || TYPE_COLORS.text;
 
   return (

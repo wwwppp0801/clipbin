@@ -4,6 +4,7 @@ use crate::models::{ContentType, NewClip};
 
 pub trait ClipboardReader: Send {
     fn get_text(&mut self) -> Option<String>;
+    fn get_html(&mut self) -> Option<String>;
     fn get_image(&mut self) -> Option<Vec<u8>>;
     fn get_file_urls(&mut self) -> Option<Vec<String>>;
 }
@@ -25,6 +26,17 @@ impl ClipboardReader for SystemClipboard {
         self.clipboard.get_text().ok().filter(|t| !t.is_empty())
     }
 
+    fn get_html(&mut self) -> Option<String> {
+        #[cfg(target_os = "macos")]
+        {
+            read_html_from_pasteboard()
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            None
+        }
+    }
+
     fn get_image(&mut self) -> Option<Vec<u8>> {
         let img = self.clipboard.get_image().ok()?;
         encode_rgba_to_png(img.width as u32, img.height as u32, &img.bytes)
@@ -38,6 +50,44 @@ impl ClipboardReader for SystemClipboard {
         #[cfg(not(target_os = "macos"))]
         {
             None
+        }
+    }
+}
+
+/// Read HTML content from NSPasteboard.
+#[cfg(target_os = "macos")]
+fn read_html_from_pasteboard() -> Option<String> {
+    use objc::runtime::{Class, Object};
+    use objc::{msg_send, sel, sel_impl};
+
+    unsafe {
+        let pb_cls = Class::get("NSPasteboard")?;
+        let pb: *mut Object = msg_send![pb_cls, generalPasteboard];
+        if pb.is_null() {
+            return None;
+        }
+
+        // Check for "public.html" type
+        let nsstring_cls = Class::get("NSString")?;
+        let html_type_str = std::ffi::CString::new("public.html").ok()?;
+        let html_type: *mut Object =
+            msg_send![nsstring_cls, stringWithUTF8String: html_type_str.as_ptr()];
+        let html_data: *mut Object = msg_send![pb, stringForType: html_type];
+
+        if html_data.is_null() {
+            return None;
+        }
+
+        let cstr: *const std::os::raw::c_char = msg_send![html_data, UTF8String];
+        if cstr.is_null() {
+            return None;
+        }
+
+        let s = std::ffi::CStr::from_ptr(cstr).to_string_lossy().to_string();
+        if s.is_empty() {
+            None
+        } else {
+            Some(s)
         }
     }
 }
@@ -117,6 +167,7 @@ pub struct ClipboardMonitor<R: ClipboardReader> {
 
 pub enum ClipboardContent {
     Text(String),
+    Html { html: String, plain: String },
     Image(Vec<u8>),
     FilePath(String),
 }
@@ -128,6 +179,10 @@ impl ClipboardContent {
             ClipboardContent::Text(t) => {
                 hasher.update(b"text:");
                 hasher.update(t.as_bytes());
+            }
+            ClipboardContent::Html { html, .. } => {
+                hasher.update(b"html:");
+                hasher.update(html.as_bytes());
             }
             ClipboardContent::Image(data) => {
                 hasher.update(b"image:");
@@ -147,6 +202,12 @@ impl ClipboardContent {
             ClipboardContent::Text(text) => NewClip {
                 content_type: ContentType::Text,
                 text_content: Some(text),
+                image_data: None,
+                content_hash: hash,
+            },
+            ClipboardContent::Html { plain, .. } => NewClip {
+                content_type: ContentType::Html,
+                text_content: Some(plain),
                 image_data: None,
                 content_hash: hash,
             },
@@ -190,9 +251,13 @@ impl<R: ClipboardReader> ClipboardMonitor<R> {
             return None;
         }
 
-        // Try text
+        // Try text (check for HTML enrichment)
         if let Some(text) = self.reader.get_text() {
-            let content = classify_text(text);
+            let content = if let Some(html) = self.reader.get_html() {
+                ClipboardContent::Html { html, plain: text }
+            } else {
+                classify_text(text)
+            };
             let hash = content.compute_hash();
             if self.last_text_hash.as_ref() != Some(&hash) {
                 self.last_text_hash = Some(hash);
@@ -242,6 +307,7 @@ mod tests {
 
     struct MockClipboard {
         text: Option<String>,
+        html: Option<String>,
         image: Option<Vec<u8>>,
         file_urls: Option<Vec<String>>,
     }
@@ -252,6 +318,7 @@ mod tests {
         fn new() -> Self {
             Self {
                 text: None,
+                html: None,
                 image: None,
                 file_urls: None,
             }
@@ -259,6 +326,14 @@ mod tests {
 
         fn set_text(&mut self, text: &str) {
             self.text = Some(text.to_string());
+            self.html = None;
+            self.image = None;
+            self.file_urls = None;
+        }
+
+        fn set_html(&mut self, text: &str, html: &str) {
+            self.text = Some(text.to_string());
+            self.html = Some(html.to_string());
             self.image = None;
             self.file_urls = None;
         }
@@ -266,12 +341,14 @@ mod tests {
         fn set_image(&mut self, data: Vec<u8>) {
             self.image = Some(data);
             self.text = None;
+            self.html = None;
             self.file_urls = None;
         }
 
         fn set_file_urls(&mut self, urls: Vec<String>) {
             self.file_urls = Some(urls);
             self.text = None;
+            self.html = None;
             self.image = None;
         }
     }
@@ -279,6 +356,10 @@ mod tests {
     impl ClipboardReader for MockClipboard {
         fn get_text(&mut self) -> Option<String> {
             self.text.clone()
+        }
+
+        fn get_html(&mut self) -> Option<String> {
+            self.html.clone()
         }
 
         fn get_image(&mut self) -> Option<Vec<u8>> {
@@ -444,5 +525,33 @@ mod tests {
             ClipboardContent::Image(data) => assert_eq!(data, vec![10, 20, 30]),
             _ => panic!("Expected image content"),
         }
+    }
+
+    #[test]
+    fn test_monitor_detects_html() {
+        let mut mock = MockClipboard::new();
+        mock.set_html("Hello World", "<b>Hello World</b>");
+        let mut monitor = ClipboardMonitor::new(mock);
+
+        let result = monitor.check();
+        assert!(result.is_some());
+        match result.unwrap() {
+            ClipboardContent::Html { html, plain } => {
+                assert_eq!(html, "<b>Hello World</b>");
+                assert_eq!(plain, "Hello World");
+            }
+            _ => panic!("Expected HTML content"),
+        }
+    }
+
+    #[test]
+    fn test_html_into_new_clip() {
+        let content = ClipboardContent::Html {
+            html: "<p>test</p>".to_string(),
+            plain: "test".to_string(),
+        };
+        let clip = content.into_new_clip();
+        assert_eq!(clip.content_type, ContentType::Html);
+        assert_eq!(clip.text_content.as_deref(), Some("test"));
     }
 }

@@ -35,7 +35,7 @@ impl Database {
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS clips (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                content_type TEXT NOT NULL CHECK(content_type IN ('text', 'image', 'file_path')),
+                content_type TEXT NOT NULL CHECK(content_type IN ('text', 'html', 'image', 'file_path')),
                 text_content TEXT,
                 image_data BLOB,
                 content_hash TEXT NOT NULL,

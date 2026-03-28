@@ -28,7 +28,7 @@ pub async fn paste_clip(db: &Database, id: i64) -> Result<(), String> {
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
 
     match clip.content_type {
-        ContentType::Text => {
+        ContentType::Text | ContentType::Html => {
             if let Some(text) = &clip.text_content {
                 clipboard.set_text(text).map_err(|e| e.to_string())?;
             }
