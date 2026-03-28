@@ -9,7 +9,7 @@ export default function SearchBar({ onOpenSettings }: SearchBarProps) {
   const searchQuery = useClipStore((s) => s.searchQuery);
   const setSearchQuery = useClipStore((s) => s.setSearchQuery);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

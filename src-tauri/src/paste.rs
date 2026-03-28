@@ -132,9 +132,6 @@ fn write_file_urls_to_pasteboard(paths_text: &str) -> Result<(), String> {
         let nsstring_cls = Class::get("NSString").ok_or("NSString not found")?;
 
         for path in &paths {
-            let ns_path: *mut Object = msg_send![nsstring_cls,
-                stringWithUTF8String: path.as_ptr() as *const std::os::raw::c_char];
-            // Need null-terminated string
             let c_path = std::ffi::CString::new(*path).map_err(|e| e.to_string())?;
             let ns_path: *mut Object =
                 msg_send![nsstring_cls, stringWithUTF8String: c_path.as_ptr()];

@@ -221,7 +221,7 @@ fn classify_text(text: String) -> ClipboardContent {
     // Single line, looks like an absolute path, and actually exists
     if !trimmed.contains('\n') && (trimmed.starts_with('/') || trimmed.starts_with("~/")) {
         let expanded = if trimmed.starts_with("~/") {
-            if let Some(home) = std::env::var("HOME").ok() {
+            if let Ok(home) = std::env::var("HOME") {
                 trimmed.replacen("~", &home, 1)
             } else {
                 trimmed.to_string()

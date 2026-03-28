@@ -156,6 +156,7 @@ fn position_at_bottom(app: &tauri::AppHandle) {
 }
 
 #[cfg(target_os = "macos")]
+#[allow(deprecated)]
 fn macos_visible_frame() -> (f64, f64, f64, f64) {
     use cocoa::appkit::NSScreen;
     use cocoa::base::nil;
