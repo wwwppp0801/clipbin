@@ -83,3 +83,9 @@ pub async fn save_settings(
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn do_hide_window(app: tauri::AppHandle) -> Result<(), String> {
+    crate::tray::do_hide(&app);
+    Ok(())
+}

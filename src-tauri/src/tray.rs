@@ -4,11 +4,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{TrayIconBuilder, TrayIconEvent},
-    App, Manager, WebviewWindow,
+    App, Emitter, Manager, WebviewWindow,
 };
 
-/// Timestamp (millis) of the last show action. Used to prevent
-/// immediate blur-hide when the window is freshly shown.
+/// Timestamp (millis) of the last show action.
 static LAST_SHOW_TIME: AtomicU64 = AtomicU64::new(0);
 
 fn now_millis() -> u64 {
@@ -47,15 +46,13 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Auto-hide when window loses focus (user clicks outside).
-/// Ignores blur events within 300ms of showing to prevent
-/// the tray-click-show-then-immediate-blur problem.
 pub fn setup_blur_hide(window: &WebviewWindow) {
-    let win = window.clone();
+    let win_handle = window.app_handle().clone();
     window.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(false) = event {
             let elapsed = now_millis().saturating_sub(LAST_SHOW_TIME.load(Ordering::Relaxed));
-            if elapsed > 300 {
-                win.hide().ok();
+            if elapsed > 500 {
+                request_hide(&win_handle);
             }
         }
     });
@@ -64,13 +61,35 @@ pub fn setup_blur_hide(window: &WebviewWindow) {
 pub fn toggle_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible().unwrap_or(false) {
-            window.hide().ok();
+            request_hide(app);
         } else {
-            position_at_bottom(app);
-            LAST_SHOW_TIME.store(now_millis(), Ordering::Relaxed);
-            window.show().ok();
-            window.set_focus().ok();
+            show_window(app);
         }
+    }
+}
+
+/// Show window with entrance animation
+fn show_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        position_at_bottom(app);
+        LAST_SHOW_TIME.store(now_millis(), Ordering::Relaxed);
+        window.show().ok();
+        window.set_focus().ok();
+        // Tell frontend to play entrance animation
+        app.emit("window-will-show", ()).ok();
+    }
+}
+
+/// Request hide — tell frontend to play exit animation.
+/// Frontend will call do_hide_window() when animation completes.
+fn request_hide(app: &tauri::AppHandle) {
+    app.emit("window-will-hide", ()).ok();
+}
+
+/// Actually hide the window (called by frontend after exit animation)
+pub fn do_hide(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        window.hide().ok();
     }
 }
 
