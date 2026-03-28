@@ -27,6 +27,12 @@ export default function ClipList() {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (clips.length === 0) return;
+      // Don't intercept when typing in search input
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        // Only allow arrow keys and enter from input
+        if (!["ArrowLeft", "ArrowRight", "Enter"].includes(e.key)) return;
+      }
       if (e.key === "ArrowLeft") {
         e.preventDefault();
         setSelectedIndex((i) => Math.max(0, i - 1));
