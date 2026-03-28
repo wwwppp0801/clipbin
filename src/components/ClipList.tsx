@@ -68,6 +68,13 @@ export default function ClipList() {
         if (clip) {
           useClipStore.getState().copyClip(clip.id);
         }
+      } else if (e.key === "v" && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+        // Cmd+Shift+V: paste as plain text (same as Enter since we store plain text)
+        e.preventDefault();
+        const clip = clips[selectedIndex];
+        if (clip) {
+          useClipStore.getState().pasteClip(clip.id);
+        }
       } else if (e.key === "p" && (e.metaKey || e.ctrlKey)) {
         // Cmd+P: toggle pin on selected clip
         e.preventDefault();
