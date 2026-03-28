@@ -37,7 +37,7 @@ pub fn run() {
             let settings = Settings::load(&app_data_dir);
             let hotkey = settings.hotkey.clone();
             let settings = Arc::new(Mutex::new(settings));
-            app.manage(settings);
+            app.manage(settings.clone());
 
             // Setup system tray
             tray::setup_tray(app)?;
@@ -50,6 +50,7 @@ pub fn run() {
             // Start clipboard monitor
             let app_handle = app.handle().clone();
             let monitor_db = db.clone();
+            let monitor_settings = settings.clone();
             std::thread::spawn(move || {
                 let reader = match SystemClipboard::new() {
                     Ok(r) => r,
@@ -69,6 +70,7 @@ pub fn run() {
                         let hash = new_clip.content_hash.clone();
                         let db = monitor_db.clone();
                         let handle = app_handle.clone();
+                        let settings_ref = monitor_settings.clone();
                         tauri::async_runtime::spawn(async move {
                             match db.find_by_hash(&hash).await {
                                 Ok(Some(existing)) => {
@@ -77,6 +79,9 @@ pub fn run() {
                                 Ok(None) => {
                                     if let Ok(clip) = db.insert_clip(new_clip).await {
                                         handle.emit("clipboard-changed", clip.to_dto()).ok();
+                                        // Enforce max clips limit
+                                        let max = settings_ref.lock().await.max_clips;
+                                        db.enforce_limit(max).await.ok();
                                     }
                                 }
                                 Err(e) => {

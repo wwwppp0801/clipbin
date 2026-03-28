@@ -168,6 +168,22 @@ impl Database {
         Ok(())
     }
 
+    /// Delete oldest clips (by last_used_at) that exceed the max limit.
+    /// Pinned clips are never deleted.
+    pub async fn enforce_limit(&self, max_clips: i64) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            "DELETE FROM clips WHERE id IN (
+                SELECT id FROM clips WHERE is_pinned = 0
+                ORDER BY last_used_at DESC
+                LIMIT -1 OFFSET ?
+            )",
+        )
+        .bind(max_clips)
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
     pub async fn touch_clip(&self, id: i64) -> Result<(), sqlx::Error> {
         let now = chrono::Utc::now().to_rfc3339();
         sqlx::query("UPDATE clips SET last_used_at = ?, use_count = use_count + 1 WHERE id = ?")
@@ -381,5 +397,25 @@ mod tests {
         db.touch_clip_by_hash("hash_touch").await.unwrap();
         let updated = db.get_clip_by_id(clip.id).await.unwrap().unwrap();
         assert_eq!(updated.use_count, 2);
+    }
+
+    #[tokio::test]
+    async fn test_enforce_limit() {
+        let db = setup_db().await;
+        for i in 0..10 {
+            db.insert_clip(make_text_clip(&format!("clip {}", i), &format!("lim{}", i)))
+                .await
+                .unwrap();
+        }
+
+        let all = db.get_clips(100, 0).await.unwrap();
+        assert_eq!(all.len(), 10);
+
+        // Enforce limit of 5
+        let deleted = db.enforce_limit(5).await.unwrap();
+        assert_eq!(deleted, 5);
+
+        let remaining = db.get_clips(100, 0).await.unwrap();
+        assert_eq!(remaining.len(), 5);
     }
 }
