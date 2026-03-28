@@ -38,8 +38,14 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
         .item(&quit)
         .build()?;
 
+    // Load dedicated tray icon (22pt = 44px @2x, with padding)
+    let tray_icon = {
+        let bytes = include_bytes!("../icons/tray-icon.png");
+        tauri::image::Image::from_bytes(bytes)?
+    };
+
     TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
+        .icon(tray_icon)
         .icon_as_template(true)
         .menu(&menu)
         .show_menu_on_left_click(false)

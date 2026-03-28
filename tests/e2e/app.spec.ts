@@ -16,6 +16,16 @@ const mockClips = [
   },
   {
     id: 2,
+    content_type: "html",
+    text_content: "Bold text from web page",
+    image_preview: null,
+    created_at: new Date(Date.now() - 1800000).toISOString(),
+    last_used_at: new Date(Date.now() - 1800000).toISOString(),
+    use_count: 1,
+    is_pinned: false,
+  },
+  {
+    id: 3,
     content_type: "text",
     text_content: "const x = 42;",
     image_preview: null,
@@ -25,7 +35,7 @@ const mockClips = [
     is_pinned: false,
   },
   {
-    id: 3,
+    id: 4,
     content_type: "file_path",
     text_content: "/Users/test/document.pdf",
     image_preview: null,
