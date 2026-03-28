@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatRelativeTime, truncateText, getContentIcon } from "../../src/lib/utils";
+import { formatRelativeTime, truncateText, getContentIcon, isUrl } from "../../src/lib/utils";
 
 describe("truncateText", () => {
   it("returns short text unchanged", () => {
@@ -52,5 +52,28 @@ describe("getContentIcon", () => {
 
   it("returns correct icon for file_path", () => {
     expect(getContentIcon("file_path")).toBe("file");
+  });
+});
+
+describe("isUrl", () => {
+  it("detects http URLs", () => {
+    expect(isUrl("http://example.com")).toBe(true);
+  });
+
+  it("detects https URLs", () => {
+    expect(isUrl("https://example.com/path?q=1")).toBe(true);
+  });
+
+  it("rejects plain text", () => {
+    expect(isUrl("hello world")).toBe(false);
+  });
+
+  it("rejects multi-line URLs", () => {
+    expect(isUrl("https://a.com\nhttps://b.com")).toBe(false);
+  });
+
+  it("handles null/undefined", () => {
+    expect(isUrl(null)).toBe(false);
+    expect(isUrl(undefined)).toBe(false);
   });
 });
