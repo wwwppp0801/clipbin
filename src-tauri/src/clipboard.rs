@@ -636,4 +636,30 @@ mod tests {
         assert_eq!(clip.content_type, ContentType::Html);
         assert_eq!(clip.text_content.as_deref(), Some("test"));
     }
+
+    #[test]
+    fn test_monitor_skips_when_no_change() {
+        struct NoChangeMock;
+        unsafe impl Send for NoChangeMock {}
+        impl ClipboardReader for NoChangeMock {
+            fn has_changed(&mut self) -> bool {
+                false
+            }
+            fn get_text(&mut self) -> Option<String> {
+                Some("should not see this".to_string())
+            }
+            fn get_html(&mut self) -> Option<String> {
+                None
+            }
+            fn get_image(&mut self) -> Option<Vec<u8>> {
+                None
+            }
+            fn get_file_urls(&mut self) -> Option<Vec<String>> {
+                None
+            }
+        }
+
+        let mut monitor = ClipboardMonitor::new(NoChangeMock);
+        assert!(monitor.check().is_none());
+    }
 }
