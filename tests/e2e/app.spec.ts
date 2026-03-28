@@ -216,4 +216,26 @@ test.describe("ClipBin App", () => {
     await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 3000 });
     await expect(page.getByText("const x = 42;")).toBeVisible({ timeout: 3000 });
   });
+
+  test("settings button opens settings dialog", async ({ page }) => {
+    await page.getByTestId("settings-button").click();
+    await expect(page.getByTestId("settings-dialog")).toBeVisible();
+    // Should show hotkey input
+    await expect(page.getByTestId("hotkey-input")).toBeVisible();
+    // Should show max clips input
+    await expect(page.getByTestId("max-clips-input")).toBeVisible();
+  });
+
+  test("footer shows clip count", async ({ page }) => {
+    await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
+    // Footer should show "4 clips"
+    await expect(page.getByText("4 clips")).toBeVisible();
+  });
+
+  test("clear all removes clips", async ({ page }) => {
+    await expect(page.getByText("Hello, World!")).toBeVisible({ timeout: 5000 });
+    await page.getByTestId("clear-history").click();
+    // Should show empty state
+    await expect(page.getByTestId("empty-state")).toBeVisible({ timeout: 2000 });
+  });
 });
