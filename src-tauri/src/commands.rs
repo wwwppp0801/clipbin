@@ -95,6 +95,11 @@ pub async fn clear_history(state: State<'_, Arc<Database>>) -> Result<(), String
 }
 
 #[tauri::command]
+pub async fn copy_clip(state: State<'_, Arc<Database>>, id: i64) -> Result<(), String> {
+    crate::paste::copy_clip_to_clipboard(&state, id).await
+}
+
+#[tauri::command]
 pub async fn paste_clip(
     app: tauri::AppHandle,
     state: State<'_, Arc<Database>>,

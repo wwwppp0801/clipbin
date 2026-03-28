@@ -15,6 +15,52 @@ pub fn was_self_triggered() -> bool {
     SELF_TRIGGERED.swap(false, Ordering::Relaxed)
 }
 
+/// Copy a clip to system clipboard only (no paste simulation, no window hide).
+pub async fn copy_clip_to_clipboard(db: &Database, id: i64) -> Result<(), String> {
+    let clip = db
+        .get_clip_by_id(id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Clip not found")?;
+
+    SELF_TRIGGERED.store(true, Ordering::Relaxed);
+
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+
+    match clip.content_type {
+        ContentType::Text | ContentType::Html => {
+            if let Some(text) = &clip.text_content {
+                clipboard.set_text(text).map_err(|e| e.to_string())?;
+            }
+        }
+        ContentType::FilePath =>
+        {
+            #[cfg(target_os = "macos")]
+            if let Some(text) = &clip.text_content {
+                write_file_urls_to_pasteboard(text)?;
+            }
+        }
+        ContentType::Image => {
+            if let Some(png_data) = &clip.image_data {
+                let img = image::load_from_memory(png_data).map_err(|e| e.to_string())?;
+                let rgba = img.to_rgba8();
+                let (w, h) = rgba.dimensions();
+                let arboard_img = arboard::ImageData {
+                    width: w as usize,
+                    height: h as usize,
+                    bytes: std::borrow::Cow::Borrowed(rgba.as_raw()),
+                };
+                clipboard
+                    .set_image(arboard_img)
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    db.touch_clip(id).await.ok();
+    Ok(())
+}
+
 /// Write a clip's content to the system clipboard, then simulate Cmd+V.
 pub async fn paste_clip(db: &Database, id: i64) -> Result<(), String> {
     let clip = db

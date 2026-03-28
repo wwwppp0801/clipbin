@@ -109,6 +109,7 @@ pub fn run() {
             commands::get_clips,
             commands::search_clips,
             commands::delete_clip,
+            commands::copy_clip,
             commands::paste_clip,
             commands::toggle_pin,
             commands::clear_history,

@@ -39,6 +39,13 @@ export default function ClipList() {
         if (clip) {
           useClipStore.getState().pasteClip(clip.id);
         }
+      } else if (e.key === "c" && (e.metaKey || e.ctrlKey)) {
+        // Cmd+C: copy selected clip to clipboard without pasting
+        e.preventDefault();
+        const clip = clips[selectedIndex];
+        if (clip) {
+          useClipStore.getState().copyClip(clip.id);
+        }
       } else if (e.key >= "1" && e.key <= "9") {
         // Number keys for quick paste
         const index = parseInt(e.key) - 1;

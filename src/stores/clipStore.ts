@@ -22,6 +22,7 @@ interface ClipStore {
   fetchClips: () => Promise<void>;
   searchClips: (query: string) => Promise<void>;
   deleteClip: (id: number) => Promise<void>;
+  copyClip: (id: number) => Promise<void>;
   pasteClip: (id: number) => Promise<void>;
   togglePin: (id: number) => Promise<void>;
   clearHistory: () => Promise<void>;
@@ -69,6 +70,14 @@ export const useClipStore = create<ClipStore>((set, get) => ({
       set((state) => ({
         clips: state.clips.filter((c) => c.id !== id),
       }));
+    } catch {
+      // silently fail
+    }
+  },
+
+  copyClip: async (id: number) => {
+    try {
+      await invoke("copy_clip", { id });
     } catch {
       // silently fail
     }
