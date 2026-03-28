@@ -1,4 +1,4 @@
-import type { ClipItem } from "../stores/clipStore";
+import { useClipStore, type ClipItem } from "../stores/clipStore";
 
 interface PreviewDialogProps {
   clip: ClipItem | null;
@@ -6,6 +6,9 @@ interface PreviewDialogProps {
 }
 
 export default function PreviewDialog({ clip, onClose }: PreviewDialogProps) {
+  const copyClip = useClipStore((s) => s.copyClip);
+  const pasteClip = useClipStore((s) => s.pasteClip);
+
   if (!clip) return null;
 
   return (
@@ -25,22 +28,41 @@ export default function PreviewDialog({ clip, onClose }: PreviewDialogProps) {
             </span>
             {clip.source_app && <span className="text-xs text-gray-500">{clip.source_app}</span>}
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-800 hover:text-white"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                copyClip(clip.id);
+              }}
+              className="rounded-lg px-2.5 py-1 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
             >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+              Copy
+            </button>
+            <button
+              onClick={() => {
+                onClose();
+                pasteClip(clip.id);
+              }}
+              className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-500"
+            >
+              Paste
+            </button>
+            <button
+              onClick={onClose}
+              className="ml-1 rounded-lg p-1 text-gray-400 hover:bg-gray-800 hover:text-white"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {clip.content_type === "image" && clip.image_preview ? (
@@ -55,8 +77,9 @@ export default function PreviewDialog({ clip, onClose }: PreviewDialogProps) {
           </pre>
         )}
 
-        <div className="mt-3 text-xs text-gray-500">
-          {clip.text_content && `${clip.text_content.length} characters`}
+        <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+          <span>{clip.text_content && `${clip.text_content.length} characters`}</span>
+          <span>{clip.created_at && new Date(clip.created_at).toLocaleString()}</span>
         </div>
       </div>
     </div>
