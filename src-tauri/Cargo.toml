@@ -1,0 +1,42 @@
+[package]
+name = "clipbin"
+version = "0.1.0"
+description = "A lightweight clipboard manager for macOS"
+authors = ["ClipBin"]
+edition = "2021"
+
+[lib]
+name = "clipbin_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "clipbin"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+arboard = "3"
+sha2 = "0.10"
+hex = "0.4"
+tokio = { version = "1", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
+log = "0.4"
+env_logger = "0.11"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
