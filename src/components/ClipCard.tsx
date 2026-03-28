@@ -107,6 +107,12 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
             {clip.source_app && <span className="max-w-[60px] truncate">{clip.source_app}</span>}
             {clip.source_app && <span>·</span>}
             <span>{formatRelativeTime(clip.created_at)}</span>
+            {clip.use_count > 1 && (
+              <>
+                <span>·</span>
+                <span>{clip.use_count}x</span>
+              </>
+            )}
           </div>
         </div>
       </div>
