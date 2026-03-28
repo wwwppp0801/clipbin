@@ -3,6 +3,7 @@ use sha2::{Digest, Sha256};
 use crate::models::{ContentType, NewClip};
 
 pub trait ClipboardReader: Send {
+    fn has_changed(&mut self) -> bool;
     fn get_text(&mut self) -> Option<String>;
     fn get_html(&mut self) -> Option<String>;
     fn get_image(&mut self) -> Option<Vec<u8>>;
@@ -11,17 +12,36 @@ pub trait ClipboardReader: Send {
 
 pub struct SystemClipboard {
     clipboard: arboard::Clipboard,
+    last_change_count: i64,
 }
 
 impl SystemClipboard {
     pub fn new() -> Result<Self, arboard::Error> {
         Ok(Self {
             clipboard: arboard::Clipboard::new()?,
+            last_change_count: -1,
         })
     }
 }
 
 impl ClipboardReader for SystemClipboard {
+    fn has_changed(&mut self) -> bool {
+        #[cfg(target_os = "macos")]
+        {
+            let count = get_pasteboard_change_count();
+            if count != self.last_change_count {
+                self.last_change_count = count;
+                true
+            } else {
+                false
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            true // Always check on non-macOS
+        }
+    }
+
     fn get_text(&mut self) -> Option<String> {
         self.clipboard.get_text().ok().filter(|t| !t.is_empty())
     }
@@ -51,6 +71,25 @@ impl ClipboardReader for SystemClipboard {
         {
             None
         }
+    }
+}
+
+/// Get NSPasteboard.changeCount to detect clipboard changes efficiently.
+#[cfg(target_os = "macos")]
+fn get_pasteboard_change_count() -> i64 {
+    use objc::runtime::{Class, Object};
+    use objc::{msg_send, sel, sel_impl};
+
+    unsafe {
+        let cls = match Class::get("NSPasteboard") {
+            Some(c) => c,
+            None => return -1,
+        };
+        let pb: *mut Object = msg_send![cls, generalPasteboard];
+        if pb.is_null() {
+            return -1;
+        }
+        msg_send![pb, changeCount]
     }
 }
 
@@ -272,6 +311,11 @@ impl<R: ClipboardReader> ClipboardMonitor<R> {
     }
 
     pub fn check(&mut self) -> Option<ClipboardContent> {
+        // Fast check: skip if clipboard hasn't changed (via NSPasteboard.changeCount)
+        if !self.reader.has_changed() {
+            return None;
+        }
+
         // Priority: file URLs > text > image
         // Check file URLs first (Finder copy)
         if let Some(paths) = self.reader.get_file_urls() {
@@ -388,6 +432,10 @@ mod tests {
     }
 
     impl ClipboardReader for MockClipboard {
+        fn has_changed(&mut self) -> bool {
+            true // Always changed in tests
+        }
+
         fn get_text(&mut self) -> Option<String> {
             self.text.clone()
         }
