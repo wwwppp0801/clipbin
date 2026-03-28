@@ -68,12 +68,19 @@ export default function ClipList() {
         if (clip) {
           useClipStore.getState().copyClip(clip.id);
         }
-      } else if (e.key >= "1" && e.key <= "9") {
+      } else if (e.key >= "1" && e.key <= "9" && !e.metaKey && !e.ctrlKey) {
         // Number keys for quick paste
         const index = parseInt(e.key) - 1;
         if (index < clips.length) {
           e.preventDefault();
           useClipStore.getState().pasteClip(clips[index].id);
+        }
+      } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // Printable character — auto-focus search and type there
+        const input = document.querySelector('[data-testid="search-input"]') as HTMLInputElement;
+        if (input && document.activeElement !== input) {
+          input.focus();
+          // Don't prevent default — let the character go into the input
         }
       }
     },
