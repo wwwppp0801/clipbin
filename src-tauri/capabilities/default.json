@@ -1,7 +1,7 @@
 {
   "identifier": "default",
   "description": "Default capabilities for ClipBin",
-  "windows": ["main"],
+  "windows": ["main", "screenshot-editor"],
   "permissions": [
     "core:default",
     "global-shortcut:allow-register",

@@ -3,6 +3,7 @@ pub mod commands;
 pub mod db;
 pub mod models;
 pub mod paste;
+pub mod screenshot;
 pub mod settings;
 pub mod tray;
 
@@ -42,6 +43,9 @@ pub fn run() {
             let hotkey = settings.hotkey.clone();
             let settings = Arc::new(Mutex::new(settings));
             app.manage(settings.clone());
+
+            // Initialize screenshot state
+            app.manage(screenshot::ScreenshotData(std::sync::Mutex::new(None)));
 
             // Setup system tray
             tray::setup_tray(app)?;
@@ -121,14 +125,23 @@ pub fn run() {
             // Register screenshot shortcut: Cmd+Shift+A
             app.global_shortcut().on_shortcut(
                 "CmdOrCtrl+Shift+A",
-                move |_app, _shortcut, event| {
+                move |app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
-                        // Launch macOS interactive screenshot (copies to clipboard)
-                        std::thread::spawn(|| {
-                            std::process::Command::new("screencapture")
+                        let handle = app.clone();
+                        std::thread::spawn(move || {
+                            // Run screencapture and wait for it to finish
+                            let status = std::process::Command::new("screencapture")
                                 .args(["-i", "-c"])
-                                .spawn()
-                                .ok();
+                                .status();
+                            // If user completed the screenshot (didn't cancel)
+                            if let Ok(s) = status {
+                                if s.success() {
+                                    // Open editor window
+                                    tauri::async_runtime::spawn(async move {
+                                        screenshot::open_editor(&handle).await.ok();
+                                    });
+                                }
+                            }
                         });
                     }
                 },
@@ -154,6 +167,9 @@ pub fn run() {
             commands::get_settings,
             commands::save_settings,
             commands::do_hide_window,
+            screenshot::get_screenshot_data,
+            screenshot::save_screenshot,
+            screenshot::copy_screenshot_to_clipboard,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ClipBin");

@@ -217,7 +217,7 @@ pub fn get_frontmost_app_name() -> Option<String> {
     None
 }
 
-fn encode_rgba_to_png(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
+pub fn encode_rgba_to_png(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
     use image::{ImageBuffer, RgbaImage};
     use std::io::Cursor;
 

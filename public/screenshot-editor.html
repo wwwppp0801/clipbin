@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Screenshot Editor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    .canvas-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    canvas {
+      max-width: 100%;
+      max-height: 100%;
+      cursor: crosshair;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #16213e;
+      border-top: 1px solid #333;
+      flex-wrap: wrap;
+    }
+    .toolbar button {
+      padding: 6px 12px;
+      border: 1px solid #444;
+      background: #1a1a2e;
+      color: #ccc;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .toolbar button:hover { background: #2a2a4e; }
+    .toolbar button.active { background: #0f3460; border-color: #3b82f6; color: #fff; }
+    .toolbar .sep { width: 1px; height: 24px; background: #444; }
+    .toolbar input[type="color"] {
+      width: 28px; height: 28px; border: 1px solid #444;
+      border-radius: 4px; cursor: pointer; background: none;
+      padding: 0;
+    }
+    .toolbar input[type="range"] { width: 80px; }
+    .toolbar label { font-size: 11px; color: #888; }
+    .toolbar .action-btn {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: #fff;
+      font-weight: 500;
+    }
+    .toolbar .action-btn:hover { background: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="canvas-container">
+    <canvas id="editor"></canvas>
+  </div>
+  <div class="toolbar">
+    <button id="tool-arrow" class="active" title="Arrow">↗ Arrow</button>
+    <button id="tool-rect" title="Rectangle">□ Rect</button>
+    <button id="tool-circle" title="Circle">○ Circle</button>
+    <button id="tool-line" title="Line">— Line</button>
+    <div class="sep"></div>
+    <label>Color</label>
+    <input type="color" id="color" value="#ff0000" />
+    <label>Width</label>
+    <input type="range" id="lineWidth" min="1" max="10" value="3" />
+    <span id="lineWidthLabel" style="font-size:11px;color:#888">3px</span>
+    <div class="sep"></div>
+    <button id="btn-undo" title="Undo (Cmd+Z)">↩ Undo</button>
+    <div style="flex:1"></div>
+    <button id="btn-save" title="Save as PNG">💾 Save</button>
+    <button id="btn-copy" class="action-btn" title="Copy to Clipboard">📋 Copy</button>
+  </div>
+
+  <script type="module">
+    // Wait for Tauri to be ready
+    function waitForTauri() {
+      return new Promise(resolve => {
+        if (window.__TAURI_INTERNALS__) return resolve();
+        const check = setInterval(() => {
+          if (window.__TAURI_INTERNALS__) { clearInterval(check); resolve(); }
+        }, 50);
+        setTimeout(() => { clearInterval(check); resolve(); }, 3000);
+      });
+    }
+    await waitForTauri();
+    const invoke = window.__TAURI_INTERNALS__?.invoke || (() => Promise.reject('No Tauri'));
+
+    const canvas = document.getElementById('editor');
+    const ctx = canvas.getContext('2d');
+    let bgImage = null;
+    let shapes = [];
+    let currentTool = 'arrow';
+    let currentColor = '#ff0000';
+    let currentWidth = 3;
+    let drawing = false;
+    let startX, startY;
+
+    // Tool buttons
+    const toolBtns = {
+      arrow: document.getElementById('tool-arrow'),
+      rect: document.getElementById('tool-rect'),
+      circle: document.getElementById('tool-circle'),
+      line: document.getElementById('tool-line'),
+    };
+    Object.entries(toolBtns).forEach(([tool, btn]) => {
+      btn.addEventListener('click', () => {
+        currentTool = tool;
+        Object.values(toolBtns).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    document.getElementById('color').addEventListener('input', e => currentColor = e.target.value);
+    const widthInput = document.getElementById('lineWidth');
+    const widthLabel = document.getElementById('lineWidthLabel');
+    widthInput.addEventListener('input', e => {
+      currentWidth = parseInt(e.target.value);
+      widthLabel.textContent = currentWidth + 'px';
+    });
+
+    // Load screenshot
+    try {
+      const b64 = await invoke('get_screenshot_data');
+      const img = new Image();
+      img.onload = () => {
+        bgImage = img;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        redraw();
+      };
+      img.src = 'data:image/png;base64,' + b64;
+    } catch (e) {
+      console.error('Failed to load screenshot:', e);
+    }
+
+    function redraw() {
+      if (!bgImage) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bgImage, 0, 0);
+      shapes.forEach(s => drawShape(s));
+    }
+
+    function drawShape(s) {
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = s.width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      const x = Math.min(s.x1, s.x2);
+      const y = Math.min(s.y1, s.y2);
+      const w = Math.abs(s.x2 - s.x1);
+      const h = Math.abs(s.y2 - s.y1);
+
+      switch (s.tool) {
+        case 'rect':
+          ctx.strokeRect(x, y, w, h);
+          break;
+        case 'circle':
+          ctx.beginPath();
+          ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+        case 'line':
+          ctx.beginPath();
+          ctx.moveTo(s.x1, s.y1);
+          ctx.lineTo(s.x2, s.y2);
+          ctx.stroke();
+          break;
+        case 'arrow':
+          // Line
+          ctx.beginPath();
+          ctx.moveTo(s.x1, s.y1);
+          ctx.lineTo(s.x2, s.y2);
+          ctx.stroke();
+          // Arrowhead
+          const angle = Math.atan2(s.y2 - s.y1, s.x2 - s.x1);
+          const headLen = 12 + s.width * 2;
+          ctx.beginPath();
+          ctx.moveTo(s.x2, s.y2);
+          ctx.lineTo(
+            s.x2 - headLen * Math.cos(angle - Math.PI/6),
+            s.y2 - headLen * Math.sin(angle - Math.PI/6)
+          );
+          ctx.moveTo(s.x2, s.y2);
+          ctx.lineTo(
+            s.x2 - headLen * Math.cos(angle + Math.PI/6),
+            s.y2 - headLen * Math.sin(angle + Math.PI/6)
+          );
+          ctx.stroke();
+          break;
+      }
+    }
+
+    // Get canvas coordinates from mouse event
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    canvas.addEventListener('mousedown', e => {
+      const pos = getPos(e);
+      startX = pos.x;
+      startY = pos.y;
+      drawing = true;
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      if (!drawing) return;
+      const pos = getPos(e);
+      redraw();
+      // Draw preview
+      drawShape({
+        tool: currentTool, color: currentColor, width: currentWidth,
+        x1: startX, y1: startY, x2: pos.x, y2: pos.y
+      });
+    });
+
+    canvas.addEventListener('mouseup', e => {
+      if (!drawing) return;
+      drawing = false;
+      const pos = getPos(e);
+      // Only add if there's meaningful movement
+      const dist = Math.sqrt((pos.x - startX)**2 + (pos.y - startY)**2);
+      if (dist > 3) {
+        shapes.push({
+          tool: currentTool, color: currentColor, width: currentWidth,
+          x1: startX, y1: startY, x2: pos.x, y2: pos.y
+        });
+      }
+      redraw();
+    });
+
+    // Undo
+    document.getElementById('btn-undo').addEventListener('click', () => {
+      shapes.pop();
+      redraw();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        shapes.pop();
+        redraw();
+      }
+    });
+
+    // Get canvas as base64 PNG
+    function getCanvasBase64() {
+      return canvas.toDataURL('image/png').replace('data:image/png;base64,', '');
+    }
+
+    // Save
+    document.getElementById('btn-save').addEventListener('click', async () => {
+      const data = getCanvasBase64();
+      // Use a download approach
+      const link = document.createElement('a');
+      link.download = `screenshot-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // Copy to clipboard
+    document.getElementById('btn-copy').addEventListener('click', async () => {
+      try {
+        const data = getCanvasBase64();
+        await invoke('copy_screenshot_to_clipboard', { data });
+        document.getElementById('btn-copy').textContent = '✓ Copied!';
+        setTimeout(() => {
+          document.getElementById('btn-copy').textContent = '📋 Copy';
+        }, 1500);
+      } catch (e) {
+        console.error('Copy failed:', e);
+      }
+    });
+  </script>
+</body>
+</html>
