@@ -142,6 +142,8 @@ pub fn run() {
             commands::delete_clip,
             commands::copy_clip,
             commands::paste_clip,
+            commands::export_history,
+            commands::import_history,
             commands::toggle_pin,
             commands::clear_history,
             commands::get_settings,

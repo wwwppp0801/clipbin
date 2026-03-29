@@ -89,6 +89,49 @@ pub async fn save_settings(
 }
 
 #[tauri::command]
+pub async fn export_history(state: State<'_, Arc<Database>>) -> Result<String, String> {
+    let clips = state.export_clips().await.map_err(|e| e.to_string())?;
+    let dtos: Vec<_> = clips.iter().map(|c| c.to_dto()).collect();
+    serde_json::to_string_pretty(&dtos).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn import_history(state: State<'_, Arc<Database>>, json: String) -> Result<u32, String> {
+    let items: Vec<crate::models::ClipDto> =
+        serde_json::from_str(&json).map_err(|e| e.to_string())?;
+    let mut count = 0u32;
+    for item in items {
+        let content_type = crate::models::ContentType::parse(&item.content_type);
+        if let Some(text) = &item.text_content {
+            let new_clip = crate::models::NewClip {
+                content_type,
+                text_content: Some(text.clone()),
+                image_data: None,
+                content_hash: {
+                    use sha2::Digest;
+                    let mut hasher = sha2::Sha256::new();
+                    hasher.update(text.as_bytes());
+                    format!("import_{}", hex::encode(hasher.finalize()))
+                },
+                source_app: None,
+            };
+            // Skip if already exists
+            if state
+                .find_by_hash(&new_clip.content_hash)
+                .await
+                .ok()
+                .flatten()
+                .is_none()
+            {
+                state.insert_clip(new_clip).await.ok();
+                count += 1;
+            }
+        }
+    }
+    Ok(count)
+}
+
+#[tauri::command]
 pub async fn toggle_pin(state: State<'_, Arc<Database>>, id: i64) -> Result<bool, String> {
     state.toggle_pin(id).await.map_err(|e| e.to_string())
 }

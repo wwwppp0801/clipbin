@@ -161,6 +161,51 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
           </p>
         </div>
 
+        {/* Export / Import */}
+        <div className="mb-4">
+          <label className="mb-1.5 block text-xs font-medium text-gray-400">Data</label>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  const json = await invoke<string>("export_history");
+                  const blob = new Blob([json], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `clipbin-export-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch (err) {
+                  console.error("Export failed:", err);
+                }
+              }}
+              className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700"
+            >
+              Export JSON
+            </button>
+            <label className="flex flex-1 cursor-pointer items-center justify-center rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700">
+              Import JSON
+              <input
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const json = await file.text();
+                    const count = await invoke<number>("import_history", { json });
+                    alert(`Imported ${count} clips`);
+                  } catch (err) {
+                    console.error("Import failed:", err);
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
         {/* Keyboard Shortcuts Reference */}
         <div className="mb-5 rounded-lg border border-gray-700/50 bg-gray-800/50 p-3">
           <h3 className="mb-2 text-xs font-medium text-gray-400">Keyboard Shortcuts</h3>

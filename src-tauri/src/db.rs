@@ -169,6 +169,18 @@ impl Database {
         Ok(())
     }
 
+    /// Export all text clips as JSON (excludes image binary data).
+    pub async fn export_clips(&self) -> Result<Vec<Clip>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, ClipRow>(
+            "SELECT id, content_type, text_content, NULL as image_data, content_hash, source_app,
+                    created_at, last_used_at, use_count, is_pinned
+             FROM clips ORDER BY created_at ASC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| r.into_clip()).collect())
+    }
+
     pub async fn clear_unpinned(&self) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM clips WHERE is_pinned = 0")
             .execute(&self.pool)
