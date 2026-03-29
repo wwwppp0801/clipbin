@@ -170,6 +170,7 @@ pub fn run() {
             screenshot::get_screenshot_data,
             screenshot::save_screenshot,
             screenshot::copy_screenshot_to_clipboard,
+            screenshot::close_editor,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ClipBin");

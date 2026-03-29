@@ -2,14 +2,11 @@ use tauri::Manager;
 
 /// Read the current clipboard image and open a new editor window.
 pub async fn open_editor(app: &tauri::AppHandle) -> Result<(), String> {
-    // Small delay to ensure clipboard is populated
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
-    // Read image from clipboard
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     let img = clipboard.get_image().map_err(|e| e.to_string())?;
 
-    // Encode as PNG base64
     let png_data =
         crate::clipboard::encode_rgba_to_png(img.width as u32, img.height as u32, &img.bytes)
             .ok_or("Failed to encode image")?;
@@ -17,7 +14,6 @@ pub async fn open_editor(app: &tauri::AppHandle) -> Result<(), String> {
     use base64::Engine;
     let b64 = base64::engine::general_purpose::STANDARD.encode(&png_data);
 
-    // Update screenshot data in app state
     if let Some(state) = app.try_state::<ScreenshotData>() {
         *state.0.lock().unwrap() = Some(b64);
     }
@@ -25,11 +21,9 @@ pub async fn open_editor(app: &tauri::AppHandle) -> Result<(), String> {
     // Close existing editor window if any
     if let Some(existing) = app.get_webview_window("screenshot-editor") {
         existing.close().ok();
-        // Small delay for cleanup
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
 
-    // Create editor window
     let _editor = tauri::WebviewWindowBuilder::new(
         app,
         "screenshot-editor",
@@ -90,5 +84,13 @@ pub async fn copy_screenshot_to_clipboard(data: String) -> Result<(), String> {
         .set_image(arboard_img)
         .map_err(|e| e.to_string())?;
 
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn close_editor(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("screenshot-editor") {
+        win.close().map_err(|e| e.to_string())?;
+    }
     Ok(())
 }

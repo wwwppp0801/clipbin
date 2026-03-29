@@ -382,8 +382,8 @@
       try {
         const data = getCanvasBase64();
         await invoke('copy_screenshot_to_clipboard', { data });
-        // Close the editor window after a brief moment
-        setTimeout(() => window.close(), 100);
+        // Close the editor window via Tauri command
+        await invoke('close_editor');
       } catch (e) {
         console.error('Copy failed:', e);
       }
