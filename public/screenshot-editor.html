@@ -97,6 +97,16 @@
     <label>Width</label>
     <input type="range" id="lineWidth" min="1" max="10" value="3" />
     <span id="lineWidthLabel" style="font-size:11px;color:#888">3px</span>
+    <label>Font</label>
+    <select id="fontSize" style="background:#1a1a2e;color:#ccc;border:1px solid #444;border-radius:4px;padding:2px 4px;font-size:12px">
+      <option value="16">16px</option>
+      <option value="20">20px</option>
+      <option value="24" selected>24px</option>
+      <option value="32">32px</option>
+      <option value="40">40px</option>
+      <option value="56">56px</option>
+      <option value="72">72px</option>
+    </select>
     <div class="sep"></div>
     <button id="btn-undo" title="Undo (Cmd+Z)">↩ Undo</button>
     <div style="flex:1"></div>
@@ -153,6 +163,10 @@
       currentWidth = parseInt(e.target.value);
       widthLabel.textContent = currentWidth + 'px';
     });
+    let currentFontSize = 24;
+    document.getElementById('fontSize').addEventListener('change', e => {
+      currentFontSize = parseInt(e.target.value);
+    });
 
     // Load screenshot
     try {
@@ -176,9 +190,16 @@
       shapes.forEach(s => drawShape(s));
     }
 
+    // Scale factor: canvas pixels vs display pixels
+    function getScale() {
+      const rect = canvas.getBoundingClientRect();
+      return canvas.width / rect.width;
+    }
+
     function drawShape(s) {
+      const scale = getScale();
       ctx.strokeStyle = s.color;
-      ctx.lineWidth = s.width;
+      ctx.lineWidth = s.width * scale;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -190,7 +211,8 @@
       switch (s.tool) {
         case 'text':
           ctx.fillStyle = s.color;
-          ctx.font = `${Math.max(14, s.width * 5)}px -apple-system, sans-serif`;
+          const fontSize = (s.fontSize || 24) * scale;
+          ctx.font = `${fontSize}px -apple-system, sans-serif`;
           ctx.fillText(s.text || '', s.x1, s.y1);
           break;
         case 'rect':
@@ -215,7 +237,7 @@
           ctx.stroke();
           // Arrowhead
           const angle = Math.atan2(s.y2 - s.y1, s.x2 - s.x1);
-          const headLen = 12 + s.width * 2;
+          const headLen = (12 + s.width * 2) * scale;
           ctx.beginPath();
           ctx.moveTo(s.x2, s.y2);
           ctx.lineTo(
@@ -248,6 +270,7 @@
       if (pendingTextPos && textInput.value.trim()) {
         shapes.push({
           tool: 'text', color: currentColor, width: currentWidth,
+          fontSize: currentFontSize,
           x1: pendingTextPos.x, y1: pendingTextPos.y,
           x2: 0, y2: 0,
           text: textInput.value
@@ -272,7 +295,7 @@
         textInput.style.left = (rect.left + pos.x * scaleX) + 'px';
         textInput.style.top = (rect.top + pos.y * scaleY - 10) + 'px';
         textInput.style.color = currentColor;
-        textInput.style.fontSize = Math.max(14, currentWidth * 5) + 'px';
+        textInput.style.fontSize = currentFontSize + 'px';
         textInput.focus();
         pendingTextPos = { x: pos.x, y: pos.y };
         return;
