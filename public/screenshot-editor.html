@@ -63,17 +63,34 @@
       font-weight: 500;
     }
     .toolbar .action-btn:hover { background: #2563eb; }
+    .text-overlay {
+      position: absolute;
+      display: none;
+      border: 1px dashed #3b82f6;
+      background: rgba(0,0,0,0.3);
+      padding: 2px 4px;
+      color: #fff;
+      font-size: 16px;
+      font-family: -apple-system, sans-serif;
+      outline: none;
+      min-width: 60px;
+      min-height: 24px;
+      resize: none;
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
   <div class="canvas-container">
     <canvas id="editor"></canvas>
+    <textarea id="textInput" class="text-overlay" rows="1"></textarea>
   </div>
   <div class="toolbar">
     <button id="tool-arrow" class="active" title="Arrow">↗ Arrow</button>
     <button id="tool-rect" title="Rectangle">□ Rect</button>
     <button id="tool-circle" title="Circle">○ Circle</button>
     <button id="tool-line" title="Line">— Line</button>
+    <button id="tool-text" title="Text">A Text</button>
     <div class="sep"></div>
     <label>Color</label>
     <input type="color" id="color" value="#ff0000" />
@@ -117,7 +134,10 @@
       rect: document.getElementById('tool-rect'),
       circle: document.getElementById('tool-circle'),
       line: document.getElementById('tool-line'),
+      text: document.getElementById('tool-text'),
     };
+    const textInput = document.getElementById('textInput');
+    let pendingTextPos = null; // {x, y} in canvas coords
     Object.entries(toolBtns).forEach(([tool, btn]) => {
       btn.addEventListener('click', () => {
         currentTool = tool;
@@ -168,6 +188,11 @@
       const h = Math.abs(s.y2 - s.y1);
 
       switch (s.tool) {
+        case 'text':
+          ctx.fillStyle = s.color;
+          ctx.font = `${Math.max(14, s.width * 5)}px -apple-system, sans-serif`;
+          ctx.fillText(s.text || '', s.x1, s.y1);
+          break;
         case 'rect':
           ctx.strokeRect(x, y, w, h);
           break;
@@ -218,7 +243,41 @@
       };
     }
 
+    // Commit any pending text input
+    function commitText() {
+      if (pendingTextPos && textInput.value.trim()) {
+        shapes.push({
+          tool: 'text', color: currentColor, width: currentWidth,
+          x1: pendingTextPos.x, y1: pendingTextPos.y,
+          x2: 0, y2: 0,
+          text: textInput.value
+        });
+        redraw();
+      }
+      textInput.style.display = 'none';
+      textInput.value = '';
+      pendingTextPos = null;
+    }
+
     canvas.addEventListener('mousedown', e => {
+      // If text tool, show text input at click position
+      if (currentTool === 'text') {
+        commitText(); // commit any previous text
+        const pos = getPos(e);
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = rect.width / canvas.width;
+        const scaleY = rect.height / canvas.height;
+        // Position the text input over the canvas at click location
+        textInput.style.display = 'block';
+        textInput.style.left = (rect.left + pos.x * scaleX) + 'px';
+        textInput.style.top = (rect.top + pos.y * scaleY - 10) + 'px';
+        textInput.style.color = currentColor;
+        textInput.style.fontSize = Math.max(14, currentWidth * 5) + 'px';
+        textInput.focus();
+        pendingTextPos = { x: pos.x, y: pos.y };
+        return;
+      }
+      commitText(); // commit any pending text before drawing
       const pos = getPos(e);
       startX = pos.x;
       startY = pos.y;
@@ -257,6 +316,18 @@
       redraw();
     });
 
+    // Commit text on Enter, cancel on Escape
+    textInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        commitText();
+      } else if (e.key === 'Escape') {
+        textInput.style.display = 'none';
+        textInput.value = '';
+        pendingTextPos = null;
+      }
+    });
+
     // Keyboard shortcuts
     document.addEventListener('keydown', e => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
@@ -273,6 +344,7 @@
 
     // Save
     document.getElementById('btn-save').addEventListener('click', async () => {
+      commitText();
       const data = getCanvasBase64();
       // Use a download approach
       const link = document.createElement('a');
@@ -281,15 +353,14 @@
       link.click();
     });
 
-    // Copy to clipboard
+    // Copy to clipboard and close window
     document.getElementById('btn-copy').addEventListener('click', async () => {
+      commitText(); // commit any pending text
       try {
         const data = getCanvasBase64();
         await invoke('copy_screenshot_to_clipboard', { data });
-        document.getElementById('btn-copy').textContent = '✓ Copied!';
-        setTimeout(() => {
-          document.getElementById('btn-copy').textContent = '📋 Copy';
-        }, 1500);
+        // Close the editor window after a brief moment
+        setTimeout(() => window.close(), 100);
       } catch (e) {
         console.error('Copy failed:', e);
       }
