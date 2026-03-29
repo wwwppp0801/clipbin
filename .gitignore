@@ -8,3 +8,4 @@ src-tauri/target/
 test-results/
 playwright-report/
 tests/e2e/screenshots/
+SIGNING.md
