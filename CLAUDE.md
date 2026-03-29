@@ -26,7 +26,7 @@ ClipBin is a macOS clipboard manager built with Tauri 2.0 + React + TypeScript +
 - Frontend tests: Vitest + React Testing Library in `tests/frontend/`
 - E2E tests: Playwright against Vite dev server with Tauri IPC mocked in `tests/e2e/`
 - Rust tests: cargo test with in-memory SQLite
-- Current test counts: 29 Rust + 39 frontend + 15 E2E = **83 total**
+- Current test counts: 29 Rust + 44 frontend + 15 E2E = **88 total**
 
 ### Git
 - Commit messages: conventional commits (feat/fix/chore/test/docs)
@@ -50,7 +50,9 @@ ClipBin is a macOS clipboard manager built with Tauri 2.0 + React + TypeScript +
 - **Paste**: CGEvent Cmd+V simulation + NSRunningApplication for app activation
 - **macOS native**: cocoa, objc, core-graphics crates for system integration
 - **Build**: Vite 8, pnpm
-- **CI**: GitHub Actions (lint → test → build)
+- **Screenshot**: macOS screencapture + HTML Canvas editor
+- **Website**: Cloudflare Workers (clipbin.app, i18n: EN/中文/日本語/한국어)
+- **CI**: GitHub Actions (lint → test → build → release)
 
 ## Key Commands
 
