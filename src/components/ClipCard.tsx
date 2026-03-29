@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import {} from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useClipStore, type ClipItem } from "../stores/clipStore";
 import { formatRelativeTime, isUrl, isJson } from "../lib/utils";
@@ -18,11 +18,6 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardProps) {
   const pasteClip = useClipStore((s) => s.pasteClip);
-  const deleteClip = useClipStore((s) => s.deleteClip);
-  const togglePin = useClipStore((s) => s.togglePin);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const setPreviewClipId = useClipStore((s) => s.setPreviewClipId);
 
   const handleClick = () => {
@@ -34,46 +29,15 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
     setPreviewClipId(clip.id);
   };
 
-  const closeContextMenu = useCallback(() => {
-    setContextMenu(null);
-    invoke("set_blur_paused", { paused: false }).catch(() => {});
-  }, []);
-
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    invoke("set_blur_paused", { paused: true }).catch(() => {});
-    setContextMenu({ x: e.clientX, y: e.clientY });
+    useClipStore.setState({ contextMenuClipId: clip.id });
+    invoke("show_clip_context_menu", {
+      clipId: clip.id,
+      isPinned: clip.is_pinned,
+    }).catch(() => {});
   };
-
-  const handleDelete = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    closeContextMenu();
-    deleteClip(clip.id);
-  };
-
-  const handlePasteOriginal = () => {
-    closeContextMenu();
-    pasteClip(clip.id);
-  };
-
-  const handlePastePlainText = () => {
-    closeContextMenu();
-    // For plain text paste, we just paste - the backend handles it
-    pasteClip(clip.id);
-  };
-
-  // Close context menu on outside click
-  useEffect(() => {
-    if (!contextMenu) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        closeContextMenu();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [contextMenu]);
 
   const TYPE_LABELS: Record<string, string> = {
     text: "Text",
@@ -184,7 +148,10 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
 
       {/* Delete button (hover) */}
       <button
-        onClick={(e) => handleDelete(e)}
+        onClick={(e) => {
+          e.stopPropagation();
+          useClipStore.getState().deleteClip(clip.id);
+        }}
         data-testid="clip-delete"
         className="absolute top-1.5 right-1.5 rounded-full bg-black/60 p-1 text-gray-400 opacity-0 backdrop-blur-sm transition-opacity hover:text-red-400 group-hover:opacity-100"
         title="Delete"
@@ -205,132 +172,6 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       </button>
-
-      {/* Context menu */}
-      {contextMenu && (
-        <div
-          ref={menuRef}
-          data-testid="context-menu"
-          className="fixed z-50 min-w-[160px] rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-xl"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
-          <button
-            onClick={handlePasteOriginal}
-            className="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-200 hover:bg-gray-700"
-            data-testid="ctx-paste-original"
-          >
-            Paste Original
-          </button>
-          <button
-            onClick={handlePastePlainText}
-            className="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-200 hover:bg-gray-700"
-            data-testid="ctx-paste-plain"
-          >
-            Paste as Plain Text
-          </button>
-          <button
-            onClick={() => {
-              closeContextMenu();
-              togglePin(clip.id);
-            }}
-            className="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-200 hover:bg-gray-700"
-          >
-            {clip.is_pinned ? "Unpin" : "Pin"}
-          </button>
-          <CollectionSubmenu clipId={clip.id} onDone={closeContextMenu} />
-          <div className="my-1 border-t border-gray-700" />
-          <button
-            onClick={() => handleDelete()}
-            className="flex w-full items-center px-3 py-1.5 text-left text-sm text-red-400 hover:bg-gray-700"
-            data-testid="ctx-delete"
-          >
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CollectionSubmenu({ clipId, onDone }: { clipId: number; onDone: () => void }) {
-  const [collections, setCollections] = useState<[number, string][]>([]);
-  const [expanded, setExpanded] = useState(false);
-  const [newName, setNewName] = useState("");
-  const showToast = useClipStore((s) => s.showToast);
-
-  const load = useCallback(async () => {
-    try {
-      const list = await invoke<[number, string][]>("list_collections");
-      setCollections(list);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const handleAdd = async (collectionId: number, name: string) => {
-    try {
-      await invoke("add_to_collection", { clipId, collectionId });
-      showToast(`Added to "${name}"`);
-      onDone();
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    try {
-      const id = await invoke<number>("create_collection", { name: newName.trim() });
-      await invoke("add_to_collection", { clipId, collectionId: id });
-      showToast(`Added to "${newName.trim()}"`);
-      onDone();
-    } catch {
-      /* ignore */
-    }
-  };
-
-  if (!expanded) {
-    return (
-      <button
-        onClick={() => {
-          setExpanded(true);
-          load();
-        }}
-        className="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-200 hover:bg-gray-700"
-      >
-        Add to Collection →
-      </button>
-    );
-  }
-
-  return (
-    <div className="border-t border-b border-gray-700 py-1">
-      {collections.map(([id, name]) => (
-        <button
-          key={id}
-          onClick={() => handleAdd(id, name)}
-          className="flex w-full items-center px-3 py-1 text-left text-xs text-gray-300 hover:bg-gray-700"
-        >
-          📁 {name}
-        </button>
-      ))}
-      <div className="flex items-center gap-1 px-2 pt-1">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-          placeholder="New collection..."
-          className="h-6 flex-1 rounded border border-gray-600 bg-gray-700 px-2 text-xs text-white outline-none"
-          autoFocus
-        />
-        <button
-          onClick={handleCreate}
-          className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-500"
-        >
-          +
-        </button>
-      </div>
     </div>
   );
 }

@@ -26,6 +26,36 @@ function App() {
     setAnimState("visible");
   }, [fetchClips]);
 
+  // Handle native context menu actions
+  useEffect(() => {
+    const unlisten = listen<string>("context-menu-action", (event) => {
+      const clipId = useClipStore.getState().contextMenuClipId;
+      if (!clipId) return;
+      const action = event.payload;
+      const store = useClipStore.getState();
+      switch (action) {
+        case "paste":
+          store.pasteClip(clipId);
+          break;
+        case "paste_plain":
+          store.pasteClip(clipId);
+          break;
+        case "copy":
+          store.copyClip(clipId);
+          break;
+        case "pin":
+          store.togglePin(clipId);
+          break;
+        case "delete":
+          store.deleteClip(clipId);
+          break;
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
   useEffect(() => {
     const unlistenShow = listen("window-will-show", () => {
       fetchClips();

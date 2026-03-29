@@ -29,6 +29,7 @@ interface ClipStore {
   showToast: (msg: string) => void;
   previewClipId: number | null;
   setPreviewClipId: (id: number | null) => void;
+  contextMenuClipId: number | null;
   togglePin: (id: number) => Promise<void>;
   clearHistory: () => Promise<void>;
   addClip: (clip: ClipItem) => void;
@@ -48,6 +49,7 @@ export const useClipStore = create<ClipStore>((set, get) => ({
 
   previewClipId: null,
   setPreviewClipId: (id: number | null) => set({ previewClipId: id }),
+  contextMenuClipId: null,
 
   setSearchQuery: (query: string) => {
     set({ searchQuery: query });

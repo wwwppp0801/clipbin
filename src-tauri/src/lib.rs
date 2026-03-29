@@ -1,5 +1,6 @@
 pub mod clipboard;
 pub mod commands;
+pub mod context_menu;
 pub mod db;
 pub mod models;
 pub mod paste;
@@ -54,6 +55,9 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 tray::setup_blur_hide(&window);
             }
+
+            // Setup native context menu event handler
+            context_menu::setup_menu_handler(app);
 
             // Start clipboard monitor
             let app_handle = app.handle().clone();
@@ -166,6 +170,7 @@ pub fn run() {
             commands::clear_history,
             commands::get_settings,
             commands::save_settings,
+            context_menu::show_clip_context_menu,
             commands::set_blur_paused,
             commands::do_hide_window,
             screenshot::get_screenshot_data,
