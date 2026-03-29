@@ -48,16 +48,14 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
         .icon(tray_icon)
         .icon_as_template(true)
         .menu(&menu)
-        .show_menu_on_left_click(false)
+        .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "toggle" => toggle_window(app),
             "quit" => app.exit(0),
             _ => {}
         })
-        .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { .. } = event {
-                toggle_window(tray.app_handle());
-            }
+        .on_tray_icon_event(|_tray, _event| {
+            // Menu handles all interactions now
         })
         .build(app)?;
 
