@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
-    tray::{TrayIconBuilder, TrayIconEvent},
+    tray::TrayIconBuilder,
     App, Emitter, Manager, WebviewWindow,
 };
 
