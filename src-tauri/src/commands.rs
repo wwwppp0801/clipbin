@@ -88,6 +88,59 @@ pub async fn save_settings(
     Ok(())
 }
 
+// --- Collections ---
+
+#[tauri::command]
+pub async fn create_collection(
+    state: State<'_, Arc<Database>>,
+    name: String,
+) -> Result<i64, String> {
+    state
+        .create_collection(&name)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_collections(
+    state: State<'_, Arc<Database>>,
+) -> Result<Vec<(i64, String)>, String> {
+    state.list_collections().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_collection(state: State<'_, Arc<Database>>, id: i64) -> Result<(), String> {
+    state.delete_collection(id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn add_to_collection(
+    state: State<'_, Arc<Database>>,
+    clip_id: i64,
+    collection_id: i64,
+) -> Result<(), String> {
+    state
+        .add_clip_to_collection(clip_id, collection_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_collection_clips(
+    state: State<'_, Arc<Database>>,
+    collection_id: i64,
+    limit: Option<i64>,
+) -> Result<Vec<ClipDto>, String> {
+    let limit = limit.unwrap_or(50);
+    state
+        .get_collection_clips(collection_id, limit)
+        .await
+        .map(|clips| clips.iter().map(|c| c.to_dto()).collect())
+        .map_err(|e| e.to_string())
+}
+
+// --- Export/Import ---
+
 #[tauri::command]
 pub async fn export_history(state: State<'_, Arc<Database>>) -> Result<String, String> {
     let clips = state.export_clips().await.map_err(|e| e.to_string())?;

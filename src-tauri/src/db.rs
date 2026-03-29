@@ -79,6 +79,28 @@ impl Database {
             .execute(&self.pool)
             .await?;
 
+        // Collections table
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS collections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL
+            )",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        // Junction table for clip-collection relationship
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS clip_collections (
+                clip_id INTEGER NOT NULL REFERENCES clips(id) ON DELETE CASCADE,
+                collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+                PRIMARY KEY (clip_id, collection_id)
+            )",
+        )
+        .execute(&self.pool)
+        .await?;
+
         Ok(())
     }
 
@@ -176,6 +198,86 @@ impl Database {
                     created_at, last_used_at, use_count, is_pinned
              FROM clips ORDER BY created_at ASC",
         )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| r.into_clip()).collect())
+    }
+
+    // --- Collections ---
+
+    pub async fn create_collection(&self, name: &str) -> Result<i64, sqlx::Error> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let id = sqlx::query_scalar::<_, i64>(
+            "INSERT INTO collections (name, created_at) VALUES (?, ?) RETURNING id",
+        )
+        .bind(name)
+        .bind(&now)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(id)
+    }
+
+    pub async fn list_collections(&self) -> Result<Vec<(i64, String)>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, (i64, String)>(
+            "SELECT id, name FROM collections ORDER BY name ASC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn delete_collection(&self, id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM collections WHERE id = ?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn add_clip_to_collection(
+        &self,
+        clip_id: i64,
+        collection_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT OR IGNORE INTO clip_collections (clip_id, collection_id) VALUES (?, ?)",
+        )
+        .bind(clip_id)
+        .bind(collection_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn remove_clip_from_collection(
+        &self,
+        clip_id: i64,
+        collection_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM clip_collections WHERE clip_id = ? AND collection_id = ?")
+            .bind(clip_id)
+            .bind(collection_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_collection_clips(
+        &self,
+        collection_id: i64,
+        limit: i64,
+    ) -> Result<Vec<Clip>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, ClipRow>(
+            "SELECT c.id, c.content_type, c.text_content, c.image_data, c.content_hash,
+                    c.source_app, c.created_at, c.last_used_at, c.use_count, c.is_pinned
+             FROM clips c
+             INNER JOIN clip_collections cc ON c.id = cc.clip_id
+             WHERE cc.collection_id = ?
+             ORDER BY c.last_used_at DESC
+             LIMIT ?",
+        )
+        .bind(collection_id)
+        .bind(limit)
         .fetch_all(&self.pool)
         .await?;
         Ok(rows.into_iter().map(|r| r.into_clip()).collect())

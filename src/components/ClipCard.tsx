@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useClipStore, type ClipItem } from "../stores/clipStore";
 import { formatRelativeTime, isUrl, isJson } from "../lib/utils";
 
@@ -230,6 +231,7 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
           >
             {clip.is_pinned ? "Unpin" : "Pin"}
           </button>
+          <CollectionSubmenu clipId={clip.id} onDone={() => setContextMenu(null)} />
           <div className="my-1 border-t border-gray-700" />
           <button
             onClick={() => handleDelete()}
@@ -240,6 +242,89 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function CollectionSubmenu({ clipId, onDone }: { clipId: number; onDone: () => void }) {
+  const [collections, setCollections] = useState<[number, string][]>([]);
+  const [expanded, setExpanded] = useState(false);
+  const [newName, setNewName] = useState("");
+  const showToast = useClipStore((s) => s.showToast);
+
+  const load = useCallback(async () => {
+    try {
+      const list = await invoke<[number, string][]>("list_collections");
+      setCollections(list);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleAdd = async (collectionId: number, name: string) => {
+    try {
+      await invoke("add_to_collection", { clipId, collectionId });
+      showToast(`Added to "${name}"`);
+      onDone();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    try {
+      const id = await invoke<number>("create_collection", { name: newName.trim() });
+      await invoke("add_to_collection", { clipId, collectionId: id });
+      showToast(`Added to "${newName.trim()}"`);
+      onDone();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => {
+          setExpanded(true);
+          load();
+        }}
+        className="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-200 hover:bg-gray-700"
+      >
+        Add to Collection →
+      </button>
+    );
+  }
+
+  return (
+    <div className="border-t border-b border-gray-700 py-1">
+      {collections.map(([id, name]) => (
+        <button
+          key={id}
+          onClick={() => handleAdd(id, name)}
+          className="flex w-full items-center px-3 py-1 text-left text-xs text-gray-300 hover:bg-gray-700"
+        >
+          📁 {name}
+        </button>
+      ))}
+      <div className="flex items-center gap-1 px-2 pt-1">
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+          placeholder="New collection..."
+          className="h-6 flex-1 rounded border border-gray-600 bg-gray-700 px-2 text-xs text-white outline-none"
+          autoFocus
+        />
+        <button
+          onClick={handleCreate}
+          className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-500"
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }
