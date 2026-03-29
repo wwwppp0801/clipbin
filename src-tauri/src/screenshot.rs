@@ -24,7 +24,7 @@ pub async fn open_editor(app: &tauri::AppHandle) -> Result<(), String> {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
 
-    let _editor = tauri::WebviewWindowBuilder::new(
+    let editor = tauri::WebviewWindowBuilder::new(
         app,
         "screenshot-editor",
         tauri::WebviewUrl::App("/screenshot-editor.html".into()),
@@ -38,6 +38,8 @@ pub async fn open_editor(app: &tauri::AppHandle) -> Result<(), String> {
     .center()
     .build()
     .map_err(|e| e.to_string())?;
+
+    editor.set_focus().ok();
 
     Ok(())
 }
