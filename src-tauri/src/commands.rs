@@ -220,6 +220,12 @@ pub async fn paste_clip(
 }
 
 #[tauri::command]
+pub async fn set_blur_paused(paused: bool) -> Result<(), String> {
+    crate::tray::set_blur_paused(paused);
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn do_hide_window(app: tauri::AppHandle) -> Result<(), String> {
     crate::tray::do_hide(&app);
     Ok(())

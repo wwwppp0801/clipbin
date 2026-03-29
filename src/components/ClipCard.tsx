@@ -34,25 +34,31 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
     setPreviewClipId(clip.id);
   };
 
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+    invoke("set_blur_paused", { paused: false }).catch(() => {});
+  }, []);
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    invoke("set_blur_paused", { paused: true }).catch(() => {});
     setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   const handleDelete = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setContextMenu(null);
+    closeContextMenu();
     deleteClip(clip.id);
   };
 
   const handlePasteOriginal = () => {
-    setContextMenu(null);
+    closeContextMenu();
     pasteClip(clip.id);
   };
 
   const handlePastePlainText = () => {
-    setContextMenu(null);
+    closeContextMenu();
     // For plain text paste, we just paste - the backend handles it
     pasteClip(clip.id);
   };
@@ -62,7 +68,7 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
     if (!contextMenu) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
+        closeContextMenu();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -224,14 +230,14 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
           </button>
           <button
             onClick={() => {
-              setContextMenu(null);
+              closeContextMenu();
               togglePin(clip.id);
             }}
             className="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-200 hover:bg-gray-700"
           >
             {clip.is_pinned ? "Unpin" : "Pin"}
           </button>
-          <CollectionSubmenu clipId={clip.id} onDone={() => setContextMenu(null)} />
+          <CollectionSubmenu clipId={clip.id} onDone={closeContextMenu} />
           <div className="my-1 border-t border-gray-700" />
           <button
             onClick={() => handleDelete()}

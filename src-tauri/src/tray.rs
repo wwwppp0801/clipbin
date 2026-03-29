@@ -8,11 +8,17 @@ use tauri::{
 };
 
 /// Timestamp (millis) of the last show/hide action.
-/// All input is ignored for a grace period after this timestamp.
 static LAST_ACTION_TIME: AtomicU64 = AtomicU64::new(0);
+
+/// When true, blur events are ignored (e.g. during context menu).
+static BLUR_PAUSED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Grace period in ms — ignore all hotkey/blur during this window.
 const GRACE_MS: u64 = 400;
+
+pub fn set_blur_paused(paused: bool) {
+    BLUR_PAUSED.store(paused, std::sync::atomic::Ordering::Relaxed);
+}
 
 fn now_millis() -> u64 {
     SystemTime::now()
@@ -67,7 +73,7 @@ pub fn setup_blur_hide(window: &WebviewWindow) {
     let win_handle = window.app_handle().clone();
     window.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(false) = event {
-            if !is_in_grace_period() {
+            if !is_in_grace_period() && !BLUR_PAUSED.load(std::sync::atomic::Ordering::Relaxed) {
                 request_hide(&win_handle);
             }
         }

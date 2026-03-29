@@ -166,6 +166,7 @@ pub fn run() {
             commands::clear_history,
             commands::get_settings,
             commands::save_settings,
+            commands::set_blur_paused,
             commands::do_hide_window,
             screenshot::get_screenshot_data,
             screenshot::save_screenshot,
