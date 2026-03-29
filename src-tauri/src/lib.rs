@@ -118,6 +118,22 @@ pub fn run() {
                     }
                 })?;
 
+            // Register screenshot shortcut: Cmd+Shift+A
+            app.global_shortcut().on_shortcut(
+                "CmdOrCtrl+Shift+A",
+                move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        // Launch macOS interactive screenshot (copies to clipboard)
+                        std::thread::spawn(|| {
+                            std::process::Command::new("screencapture")
+                                .args(["-i", "-c"])
+                                .spawn()
+                                .ok();
+                        });
+                    }
+                },
+            )?;
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
