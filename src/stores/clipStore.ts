@@ -104,8 +104,9 @@ export const useClipStore = create<ClipStore>((set, get) => ({
   pasteClip: async (id: number) => {
     try {
       await invoke("paste_clip", { id });
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error("paste_clip failed:", err);
+      get().showToast(`Paste failed: ${err}`);
     }
   },
 

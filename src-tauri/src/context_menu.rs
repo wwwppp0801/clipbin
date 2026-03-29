@@ -2,12 +2,12 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::Manager;
 
 #[tauri::command]
-pub async fn show_clip_context_menu(
+pub fn show_clip_context_menu(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
     _clip_id: i64,
     is_pinned: bool,
-) -> Result<Option<String>, String> {
+) -> Result<(), String> {
     let paste_item = MenuItemBuilder::with_id("paste", "Paste")
         .build(&app)
         .map_err(|e| e.to_string())?;
@@ -39,16 +39,13 @@ pub async fn show_clip_context_menu(
     // Pause blur while native menu is open
     crate::tray::set_blur_paused(true);
 
-    // popup_menu is synchronous — blocks until user picks or dismisses
+    // popup_menu blocks until user picks or dismisses
     window.popup_menu(&menu).map_err(|e| e.to_string())?;
 
     // Resume blur after menu closes
     crate::tray::set_blur_paused(false);
 
-    // We can't easily get the selected item from popup_menu in Tauri 2.
-    // Instead, use on_menu_event on the window to handle actions.
-    // Return None here — the frontend listens via the app-level menu event.
-    Ok(None)
+    Ok(())
 }
 
 /// Setup menu event handler on the main window to dispatch context menu actions.
