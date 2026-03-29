@@ -1,50 +1,78 @@
 # ClipBin
 
-> A lightweight clipboard manager for macOS, inspired by [Paste](https://pasteapp.io/).
+> A lightweight clipboard manager for macOS with built-in screenshot editor.
+
+🌐 [clipbin.app](https://clipbin.app) · ⬇ [Download](https://github.com/wwwppp0801/clipbin/releases/latest) · 📖 [Product Guide](docs/PRODUCT_GUIDE.md)
+
+![ClipBin Screenshot](docs/images/01-main-view.png)
+
+---
 
 ## Features
 
-- **Clipboard Monitoring** — Automatically captures text, images, and file copies
+### Clipboard Management
+- **Smart Capture** — Text, rich text (HTML), images, files, URLs, JSON auto-detected
 - **Card Carousel UI** — Bottom-of-screen panel with horizontally scrollable cards
-- **Instant Search** — Full-text search with SQLite FTS5, debounced input
-- **Click to Paste** — Select a clip to write it to clipboard and paste into the active app via simulated Cmd+V
-- **File Support** — Copies files via native NSPasteboard file URL API (works with Finder)
-- **Image Support** — Captures clipboard images, stores as PNG, displays thumbnails
-- **Keyboard Navigation** — Arrow keys to select, Enter to paste, Escape to dismiss
-- **Global Hotkey** — `Shift+Cmd+V` to toggle the panel (configurable in settings)
-- **Auto-hide** — Panel dismisses when clicking outside or pressing Escape
-- **Slide Animations** — Smooth entrance/exit animations from the bottom of the screen
-- **Rich Text Detection** — Detects HTML/rich text from web copies (green badge)
-- **Pin Clips** — Right-click → Pin to keep important clips permanently
+- **Instant Search** — Full-text search with SQLite FTS5 + result count
+- **Click to Paste** — Paste into active app via simulated Cmd+V (like Maccy)
+- **Pin Clips** — Pin important clips, survives clear and limit enforcement
+- **Collections** — User-defined groups, organize clips via context menu
 - **Source App Tracking** — Shows which app content was copied from
-- **Number Key Shortcuts** — Press 1-9 for instant paste
-- **Cmd+C to Copy** — Copy without pasting, with toast notification
-- **Delete/Backspace** — Remove selected clip
-- **Tab** — Switch focus to search input
-- **Ignored Apps** — Skip clipboard from password managers (1Password, KeePassXC, etc.)
-- **Clear All** — Footer button to wipe history (preserves pinned)
-- **Max Clips Limit** — Auto-delete oldest clips (configurable, default 500)
-- **Settings** — Hotkey, max clips, ignored apps, keyboard shortcuts reference
-- **Menu Bar Icon** — Paperclip template tray icon, auto-adapts to light/dark
-- **Smart Detection** — Distinguishes text, rich text, file paths, and images
-- **Deduplication** — Hash-based dedup, re-copies update timestamp instead of creating duplicates
+- **Deduplication** — SHA-256 hash, re-copies update timestamp + use count
+- **Max Clips Limit** — Auto-delete oldest (configurable, default 500)
+- **Ignored Apps** — Skip password managers (1Password, KeePassXC, etc.)
+- **Export/Import** — Clipboard history as JSON for backup/migration
+- **NSPasteboard.changeCount** — Efficient polling, skip unchanged clipboard
 
-## Screenshots
+### Screenshot Editor
+- **Cmd+Shift+A** — Capture screen area via macOS native screencapture
+- **Annotation Tools** — Arrow, rectangle, circle, line, text
+- **Color Picker** — Default red, full color selection
+- **Font Size** — 16px to 72px for text annotations
+- **Line Width** — 1-10px adjustable
+- **Undo** — Cmd+Z support
+- **Copy** — Copy edited result to clipboard + auto-close editor
+- **Save** — Export as PNG file
+- **WYSIWYG** — Annotations scale correctly regardless of retina resolution
 
-The panel appears at the bottom of the screen above the Dock:
+### Keyboard Shortcuts (14)
+| Shortcut | Action |
+|----------|--------|
+| `⇧⌘V` | Toggle clipboard panel (configurable) |
+| `⇧⌘A` | Screenshot with editor |
+| `1-9` | Quick paste Nth clip |
+| `Enter` | Paste selected clip |
+| `⌘C` | Copy to clipboard (no paste) |
+| `⌘P` | Toggle pin |
+| `⌘⇧V` | Paste as plain text |
+| `← →` | Navigate cards |
+| `Home/End` | Jump to first/last |
+| `⌫` | Delete selected clip |
+| `Tab` | Focus search input |
+| `Esc` | Dismiss panel |
+| `?` | Show keyboard shortcuts |
+| `Dbl-click` | Preview full content |
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  ─────  (drag handle)                                   │
-│  [Search clips...                              ] [⚙]   │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐      │
-│  │ Text    │ │ Text    │ │ File    │ │ Image   │  ···  │
-│  │ Hello.. │ │ const.. │ │ /path.. │ │ [thumb] │      │
-│  │         │ │         │ │         │ │         │      │
-│  │ just now│ │ 5m ago  │ │ 1h ago  │ │ 2h ago  │      │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘      │
-└─────────────────────────────────────────────────────────┘
-```
+### UI/UX
+- **Slide Animations** — Entrance/exit from bottom of screen
+- **Auto-hide** — Dismiss on blur, Escape, or click outside
+- **Right-click Context Menu** — Paste, Pin, Add to Collection, Delete
+- **Toast Notifications** — "Copied to clipboard" feedback
+- **Footer Bar** — Clip count + Clear All (double-click confirm)
+- **Number Badges** — First 9 cards show shortcut number
+- **Content-aware Display** — URL link icon, JSON orange badge, file icon + filename
+- **Double-click Preview** — Full content with Copy/Paste buttons + character count
+- **Search Result Count** — Shows "N results" when filtering
+- **Scroll Wheel** — Vertical scroll converts to horizontal in carousel
+
+### Settings
+- **Configurable Hotkey** — Record custom key combination
+- **Max Clipboard History** — 10 to 10,000 items
+- **Ignored Apps** — Comma-separated app names
+- **Launch at Login** — Toggle auto-start (tauri-plugin-autostart)
+- **Export/Import** — JSON backup buttons
+- **Keyboard Shortcuts Reference** — All shortcuts listed
+- **Version Display** — Current app version
 
 ## Tech Stack
 
@@ -52,69 +80,71 @@ The panel appears at the bottom of the screen above the Dock:
 |-------|-----------|
 | UI | React 19 + TypeScript + Tailwind CSS 4 |
 | Desktop | Tauri 2.0 |
-| Backend | Rust (clipboard monitoring, native macOS APIs) |
-| Storage | SQLite via sqlx (FTS5 full-text search) |
+| Backend | Rust (clipboard, paste, screenshot, settings) |
+| Storage | SQLite via sqlx (FTS5, collections, migrations) |
 | State | Zustand |
 | Paste | Core Graphics CGEvent (Cmd+V simulation) |
+| Screenshot | macOS screencapture + HTML Canvas editor |
 | macOS APIs | NSPasteboard, NSScreen, NSWorkspace, NSRunningApplication |
+| CI/CD | GitHub Actions (lint → test → build → release) |
+| Website | Cloudflare Workers (i18n: EN/中文/日本語/한국어) |
 
 ## Project Structure
 
 ```
 clipbin/
 ├── src/                        # React frontend
-│   ├── App.tsx                 # Root component, animation state, event listeners
+│   ├── App.tsx                 # Root: animations, events, toast, preview
 │   ├── components/
-│   │   ├── SearchBar.tsx       # Search input + settings button
-│   │   ├── ClipList.tsx        # Horizontal card carousel with keyboard nav
-│   │   ├── ClipCard.tsx        # Individual clip card with context menu
-│   │   └── SettingsDialog.tsx  # Hotkey + max clips configuration
+│   │   ├── SearchBar.tsx       # Search input + result count + settings button
+│   │   ├── ClipList.tsx        # Card carousel, keyboard nav, scroll wheel
+│   │   ├── ClipCard.tsx        # Card: content preview, context menu, collections
+│   │   ├── Footer.tsx          # Clip count + clear all
+│   │   ├── PreviewDialog.tsx   # Full content preview with copy/paste
+│   │   └── SettingsDialog.tsx  # All settings, shortcuts ref, export/import
 │   ├── stores/
-│   │   └── clipStore.ts        # Zustand store (clips CRUD, search, Tauri IPC)
+│   │   └── clipStore.ts        # Zustand: clips, search, pin, collections, toast
 │   └── lib/
-│       └── utils.ts            # formatRelativeTime, truncateText helpers
+│       └── utils.ts            # formatTime, isUrl, isJson helpers
 │
 ├── src-tauri/                  # Tauri + Rust backend
 │   ├── src/
 │   │   ├── main.rs             # Entry point
-│   │   ├── lib.rs              # App setup: DB, tray, monitor, hotkey
-│   │   ├── clipboard.rs        # Clipboard polling, hash dedup, file URL reading
-│   │   ├── db.rs               # SQLite: migrations, CRUD, FTS5 search
-│   │   ├── paste.rs            # Write clipboard + CGEvent Cmd+V + app activation
-│   │   ├── commands.rs         # Tauri IPC commands
-│   │   ├── models.rs           # Clip, ClipDto, ContentType data types
+│   │   ├── lib.rs              # App setup: DB, tray, monitor, hotkeys, autostart
+│   │   ├── clipboard.rs        # Polling, changeCount, HTML/file URL detection
+│   │   ├── db.rs               # SQLite: clips, collections, FTS5, migrations
+│   │   ├── paste.rs            # Clipboard write + CGEvent + app activation
+│   │   ├── screenshot.rs       # Editor window, clipboard image, save/copy
+│   │   ├── commands.rs         # All Tauri IPC commands
+│   │   ├── models.rs           # Clip, ClipDto, ContentType, NewClip
 │   │   ├── tray.rs             # System tray, window positioning, blur-hide
-│   │   └── settings.rs         # Settings persistence (JSON)
-│   └── tauri.conf.json         # Window config, permissions, bundle
+│   │   └── settings.rs         # JSON persistence, ignored apps
+│   └── tauri.conf.json
+│
+├── public/
+│   └── screenshot-editor.html  # Canvas-based annotation editor
 │
 ├── tests/
-│   ├── frontend/               # Vitest + React Testing Library
-│   │   ├── setup.ts            # Tauri API mocks
-│   │   ├── clipStore.test.ts
-│   │   ├── ClipCard.test.tsx
-│   │   ├── ClipList.test.tsx
-│   │   ├── SearchBar.test.tsx
-│   │   └── utils.test.ts
-│   └── e2e/
-│       ├── app.spec.ts         # Playwright E2E tests (14 scenarios)
-│       └── screenshots.spec.ts # Product screenshot generation
+│   ├── frontend/               # Vitest + React Testing Library (44 tests)
+│   └── e2e/                    # Playwright (15 tests)
 │
-├── devlog/                     # Development logs per phase
-├── .github/workflows/          # CI (lint + test + build) and Release
+├── docs/
+│   ├── PRODUCT_GUIDE.md        # Full product documentation
+│   └── images/                 # Product screenshots
+├── devlog/                     # Development logs + study notes
+├── .github/workflows/          # CI + Release workflows
 └── CLAUDE.md                   # Development conventions
 ```
 
 ## Development
 
 ### Prerequisites
-
 - [Rust](https://rustup.rs/) (1.94+)
 - [Node.js](https://nodejs.org/) (22+)
 - [pnpm](https://pnpm.io/) (10+)
 - Xcode Command Line Tools
 
 ### Setup
-
 ```bash
 git clone https://github.com/wwwppp0801/clipbin.git
 cd clipbin
@@ -122,58 +152,63 @@ pnpm install
 ```
 
 ### Run
-
 ```bash
-# Full Tauri app (Rust backend + React frontend)
-pnpm tauri dev
-
-# Frontend only (for UI development)
-pnpm dev
+pnpm tauri dev        # Full app (Rust + React)
+pnpm dev              # Frontend only
 ```
 
 ### Test
-
 ```bash
-# Rust tests (28 tests)
+# Rust (29 tests)
 cd src-tauri && cargo test
 
-# Frontend tests (39 tests)
+# Frontend (44 tests)
 pnpm test
 
-# E2E tests (14 tests)
+# E2E (15 tests)
 pnpm test:e2e
 
-# All lint checks
+# Lint
 pnpm lint
 cd src-tauri && cargo clippy --all-targets -- -D warnings -A unexpected_cfgs
 ```
 
 ### Build
-
 ```bash
-pnpm tauri build    # Produces .dmg in src-tauri/target/release/bundle/dmg/
+pnpm tauri build
+# Output: src-tauri/target/release/bundle/dmg/ClipBin_0.1.0_aarch64.dmg
 ```
 
 ## Architecture
 
 ### Clipboard Monitoring
-- Polls system clipboard every 500ms via `arboard` + NSPasteboard FFI
-- Detects text, images (PNG encoded), and file URLs (native NSPasteboard API)
-- SHA-256 hash deduplication — re-copies update timestamp, not create duplicates
-- Self-triggered flag prevents re-recording our own paste actions
+- `NSPasteboard.changeCount` for efficient change detection (like Maccy)
+- Content priority: file URLs → HTML+text → text → image
+- SHA-256 dedup, source app tracking, ignored apps filtering
 
 ### Paste Flow
-1. Remember frontmost app PID via `NSWorkspace.frontmostApplication`
+1. Remember frontmost app PID (`NSWorkspace.frontmostApplication`)
 2. Hide ClipBin window
-3. Activate previous app via `NSRunningApplication.activateWithOptions`
-4. Wait 150ms for focus to settle
-5. Write content to system clipboard (text via arboard, files via NSPasteboard fileURL)
-6. Simulate `Cmd+V` via Core Graphics `CGEvent`
+3. Activate previous app (`NSRunningApplication.activateWithOptions`)
+4. Write clipboard (arboard for text/image, NSPasteboard for file URLs)
+5. Simulate Cmd+V (`CGEvent`)
+
+### Screenshot Flow
+1. `Cmd+Shift+A` → `screencapture -i -c` (macOS native)
+2. Wait for completion → read image from clipboard
+3. Open editor window with Canvas-based annotation tools
+4. Copy → write annotated image to clipboard + close editor
 
 ### Window Management
-- Positioned above Dock using `NSScreen.visibleFrame`
-- Auto-hides on blur (focus loss) with 400ms grace period
-- Slide-up/slide-down CSS animations coordinated via Tauri events
+- Positioned above Dock via `NSScreen.visibleFrame`
+- Auto-hide on blur with 400ms grace period
+- Slide-up/down CSS animations via Tauri events
+
+## Links
+- **Website**: [clipbin.app](https://clipbin.app)
+- **GitHub**: [github.com/wwwppp0801/clipbin](https://github.com/wwwppp0801/clipbin)
+- **Releases**: [Download DMG](https://github.com/wwwppp0801/clipbin/releases/latest)
+- **Website Source**: [github.com/wwwppp0801/clipbin-site](https://github.com/wwwppp0801/clipbin-site)
 
 ## License
 
