@@ -76,7 +76,9 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
               {shortcutNumber}
             </span>
           )}
-          <span className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium ${colorClass}`}>
+          <span
+            className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium ${colorClass}`}
+          >
             {typeLabel}
           </span>
         </div>
