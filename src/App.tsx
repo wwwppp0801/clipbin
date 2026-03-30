@@ -5,7 +5,6 @@ import SearchBar from "./components/SearchBar";
 import ClipList from "./components/ClipList";
 import Footer from "./components/Footer";
 import PreviewDialog from "./components/PreviewDialog";
-import SettingsDialog from "./components/SettingsDialog";
 import { useClipStore } from "./stores/clipStore";
 
 type AnimState = "entering" | "exiting" | "visible" | "hidden";
@@ -17,7 +16,6 @@ function App() {
   const clips = useClipStore((s) => s.clips);
   const previewClipId = useClipStore((s) => s.previewClipId);
   const setPreviewClipId = useClipStore((s) => s.setPreviewClipId);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [animState, setAnimState] = useState<AnimState>("hidden");
 
   // Initial fetch on mount (for web/E2E testing and first load)
@@ -118,7 +116,7 @@ function App() {
       <div className="flex justify-center pt-1.5 pb-0">
         <div className="h-1 w-10 rounded-full bg-gray-600/50" />
       </div>
-      <SearchBar onOpenSettings={() => setSettingsOpen(true)} />
+      <SearchBar />
       <ClipList />
       <Footer />
       {toastMessage && (
@@ -130,7 +128,6 @@ function App() {
         clip={clips.find((c) => c.id === previewClipId) || null}
         onClose={() => setPreviewClipId(null)}
       />
-      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

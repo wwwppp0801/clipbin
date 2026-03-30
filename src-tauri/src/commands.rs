@@ -230,3 +230,16 @@ pub async fn do_hide_window(app: tauri::AppHandle) -> Result<(), String> {
     crate::tray::do_hide(&app);
     Ok(())
 }
+
+#[tauri::command]
+pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+    crate::tray::open_settings(&app)
+}
+
+#[tauri::command]
+pub async fn close_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("settings") {
+        win.close().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}

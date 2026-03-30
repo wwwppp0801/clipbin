@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ClipBin Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #111827;
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Title bar */
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;
+      border-bottom: 1px solid rgba(75, 85, 99, 0.5);
+      background: rgba(17, 24, 39, 0.8);
+      flex-shrink: 0;
+    }
+    .titlebar span {
+      font-size: 13px;
+      font-weight: 500;
+      color: #d1d5db;
+    }
+
+    /* Content */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    /* Form elements */
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+    .field-hint {
+      font-size: 10px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      height: 36px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 13px;
+      color: #fff;
+      outline: none;
+    }
+    input:focus {
+      border-color: #3b82f6;
+    }
+
+    .hotkey-input {
+      width: 100%;
+      height: 36px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 13px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      outline: none;
+    }
+    .hotkey-input.recording {
+      border-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.1);
+      color: #60a5fa;
+    }
+
+    /* Toggle switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .toggle-row label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #9ca3af;
+    }
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      background: #374151;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle.on { background: #2563eb; }
+    .toggle .knob {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s;
+    }
+    .toggle.on .knob { transform: translateX(16px); }
+
+    /* Data buttons */
+    .btn-row { display: flex; gap: 8px; }
+    .btn-secondary {
+      flex: 1;
+      height: 32px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      color: #d1d5db;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-secondary:hover { background: #374151; }
+
+    /* Shortcuts card */
+    .shortcuts-card {
+      background: rgba(31, 41, 55, 0.5);
+      border: 1px solid rgba(75, 85, 99, 0.5);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 20px;
+    }
+    .shortcuts-card h3 {
+      font-size: 11px;
+      font-weight: 500;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 8px;
+      font-size: 11px;
+    }
+    .shortcuts-grid .label { color: #6b7280; }
+    .shortcuts-grid .key { color: #d1d5db; text-align: right; }
+
+    /* Version */
+    .version {
+      text-align: center;
+      font-size: 10px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    /* Bottom bar */
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px 20px;
+      border-top: 1px solid rgba(75, 85, 99, 0.5);
+      flex-shrink: 0;
+    }
+    .saved-msg {
+      margin-right: auto;
+      font-size: 12px;
+      color: #4ade80;
+      display: none;
+    }
+    .btn-close {
+      padding: 6px 16px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: #9ca3af;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-close:hover { background: #1f2937; color: #fff; }
+    .btn-save {
+      padding: 6px 16px;
+      border-radius: 8px;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-save:hover { background: #3b82f6; }
+    .btn-save:disabled { opacity: 0.5; }
+
+    /* Import file input — inherit btn-secondary look */
+    .import-label {
+      flex: 1;
+      height: 32px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      color: #d1d5db;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+    }
+    .import-label:hover { background: #374151; }
+    .import-label input { display: none; }
+  </style>
+</head>
+<body>
+  <!-- Title bar (draggable) -->
+  <div class="titlebar" data-tauri-drag-region>
+    <span>ClipBin Settings</span>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- Hotkey -->
+    <div class="field">
+      <label>Toggle Hotkey</label>
+      <div id="hotkeyInput" class="hotkey-input" tabindex="0">Shift+CmdOrCtrl+V</div>
+    </div>
+
+    <!-- Max clips -->
+    <div class="field">
+      <label>Max Clipboard History</label>
+      <input type="number" id="maxClips" min="10" max="10000" value="500" />
+    </div>
+
+    <!-- Launch at Login -->
+    <div class="toggle-row">
+      <label>Launch at Login</label>
+      <div id="launchToggle" class="toggle">
+        <div class="knob"></div>
+      </div>
+    </div>
+
+    <!-- Ignored Apps -->
+    <div class="field">
+      <label>Ignored Apps (comma-separated)</label>
+      <input type="text" id="ignoredApps" placeholder="1Password, Keychain Access" />
+      <div class="field-hint">Clips from these apps won't be saved</div>
+    </div>
+
+    <!-- Export / Import -->
+    <div class="field">
+      <label>Data</label>
+      <div class="btn-row">
+        <button id="btnExport" class="btn-secondary">Export JSON</button>
+        <label class="import-label">
+          Import JSON
+          <input type="file" id="fileImport" accept=".json" />
+        </label>
+      </div>
+    </div>
+
+    <!-- Keyboard Shortcuts -->
+    <div class="shortcuts-card">
+      <h3>Keyboard Shortcuts</h3>
+      <div class="shortcuts-grid">
+        <span class="label">Toggle panel</span><span class="key">⇧⌘V</span>
+        <span class="label">Paste selected</span><span class="key">Enter</span>
+        <span class="label">Copy to clipboard</span><span class="key">⌘C</span>
+        <span class="label">Quick paste</span><span class="key">1-9</span>
+        <span class="label">Navigate</span><span class="key">← →</span>
+        <span class="label">First / Last</span><span class="key">Home / End</span>
+        <span class="label">Toggle pin</span><span class="key">⌘P</span>
+        <span class="label">Delete clip</span><span class="key">⌫</span>
+        <span class="label">Focus search</span><span class="key">Tab</span>
+        <span class="label">Dismiss</span><span class="key">Esc</span>
+        <span class="label">Preview full</span><span class="key">Double-click</span>
+      </div>
+    </div>
+
+    <!-- Version -->
+    <div class="version">ClipBin v0.2.0</div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar">
+    <span id="savedMsg" class="saved-msg">Settings saved!</span>
+    <button id="btnClose" class="btn-close">Close</button>
+    <button id="btnSave" class="btn-save">Save</button>
+  </div>
+
+  <script type="module">
+    // Wait for Tauri to be ready
+    function waitForTauri() {
+      return new Promise(resolve => {
+        if (window.__TAURI_INTERNALS__) return resolve();
+        const check = setInterval(() => {
+          if (window.__TAURI_INTERNALS__) { clearInterval(check); resolve(); }
+        }, 50);
+        setTimeout(() => { clearInterval(check); resolve(); }, 3000);
+      });
+    }
+    await waitForTauri();
+    const invoke = window.__TAURI_INTERNALS__?.invoke || (() => Promise.reject('No Tauri'));
+
+    // Elements
+    const hotkeyInput = document.getElementById('hotkeyInput');
+    const maxClipsInput = document.getElementById('maxClips');
+    const launchToggle = document.getElementById('launchToggle');
+    const ignoredAppsInput = document.getElementById('ignoredApps');
+    const btnExport = document.getElementById('btnExport');
+    const fileImport = document.getElementById('fileImport');
+    const btnClose = document.getElementById('btnClose');
+    const btnSave = document.getElementById('btnSave');
+    const savedMsg = document.getElementById('savedMsg');
+
+    let launchAtLogin = false;
+    let recordingHotkey = false;
+
+    // Load settings
+    try {
+      const s = await invoke('get_settings');
+      hotkeyInput.textContent = s.hotkey;
+      maxClipsInput.value = s.max_clips;
+      ignoredAppsInput.value = (s.ignored_apps || []).join(', ');
+    } catch (e) {
+      console.error('Failed to load settings:', e);
+    }
+
+    // Check autostart status
+    try {
+      const enabled = await invoke('plugin:autostart|is_enabled');
+      launchAtLogin = enabled;
+      if (enabled) launchToggle.classList.add('on');
+    } catch {}
+
+    // Hotkey recording
+    hotkeyInput.addEventListener('click', () => {
+      recordingHotkey = true;
+      hotkeyInput.textContent = 'Press a key combination...';
+      hotkeyInput.classList.add('recording');
+    });
+
+    hotkeyInput.addEventListener('keydown', (e) => {
+      if (!recordingHotkey) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const parts = [];
+      if (e.metaKey) parts.push('CmdOrCtrl');
+      if (e.ctrlKey && !e.metaKey) parts.push('CmdOrCtrl');
+      if (e.shiftKey) parts.push('Shift');
+      if (e.altKey) parts.push('Alt');
+
+      const key = e.key;
+      if (!['Meta', 'Control', 'Shift', 'Alt'].includes(key)) {
+        parts.push(key.length === 1 ? key.toUpperCase() : key);
+        hotkeyInput.textContent = parts.join('+');
+        hotkeyInput.classList.remove('recording');
+        recordingHotkey = false;
+      }
+    });
+
+    // Blur to cancel recording
+    hotkeyInput.addEventListener('blur', () => {
+      if (recordingHotkey) {
+        hotkeyInput.classList.remove('recording');
+        recordingHotkey = false;
+        // Restore current value
+        invoke('get_settings').then(s => {
+          hotkeyInput.textContent = s.hotkey;
+        });
+      }
+    });
+
+    // Launch toggle
+    launchToggle.addEventListener('click', () => {
+      launchAtLogin = !launchAtLogin;
+      launchToggle.classList.toggle('on', launchAtLogin);
+    });
+
+    // Export
+    btnExport.addEventListener('click', async () => {
+      try {
+        const json = await invoke('export_history');
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `clipbin-export-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error('Export failed:', e);
+      }
+    });
+
+    // Import
+    fileImport.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const json = await file.text();
+        const count = await invoke('import_history', { json });
+        alert(`Imported ${count} clips`);
+      } catch (err) {
+        console.error('Import failed:', err);
+      }
+    });
+
+    // Save
+    btnSave.addEventListener('click', async () => {
+      btnSave.disabled = true;
+      btnSave.textContent = 'Saving...';
+      try {
+        const hotkey = hotkeyInput.textContent;
+        const maxClips = parseInt(maxClipsInput.value) || 500;
+        const ignoredApps = ignoredAppsInput.value
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+        await invoke('save_settings', { hotkey, maxClips, ignoredApps });
+
+        // Update autostart
+        try {
+          if (launchAtLogin) {
+            await invoke('plugin:autostart|enable');
+          } else {
+            await invoke('plugin:autostart|disable');
+          }
+        } catch {}
+
+        savedMsg.style.display = 'inline';
+        setTimeout(() => { savedMsg.style.display = 'none'; }, 2000);
+      } catch (err) {
+        console.error('Failed to save settings:', err);
+      } finally {
+        btnSave.disabled = false;
+        btnSave.textContent = 'Save';
+      }
+    });
+
+    // Close
+    btnClose.addEventListener('click', async () => {
+      try {
+        await invoke('close_settings_window');
+      } catch {}
+    });
+  </script>
+</body>
+</html>

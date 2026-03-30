@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useClipStore } from "../stores/clipStore";
 
-interface SearchBarProps {
-  onOpenSettings: () => void;
-}
-
-export default function SearchBar({ onOpenSettings }: SearchBarProps) {
+export default function SearchBar() {
   const searchQuery = useClipStore((s) => s.searchQuery);
   const setSearchQuery = useClipStore((s) => s.setSearchQuery);
   const clipCount = useClipStore((s) => s.clips.length);
@@ -45,7 +42,7 @@ export default function SearchBar({ onOpenSettings }: SearchBarProps) {
         </span>
       )}
       <button
-        onClick={onOpenSettings}
+        onClick={() => invoke("open_settings_window").catch(() => {})}
         data-testid="settings-button"
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
         title="Settings"

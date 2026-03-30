@@ -39,9 +39,14 @@ pub fn run() {
             let db = Arc::new(db);
             app.manage(db.clone());
 
-            // Load settings
+            // Load settings (detect first launch before loading creates defaults)
+            let first_launch = !app_data_dir.join("settings.json").exists();
             let settings = Settings::load(&app_data_dir);
             let hotkey = settings.hotkey.clone();
+            // Save default settings on first launch so next launch won't be "first"
+            if first_launch {
+                settings.save(&app_data_dir).ok();
+            }
             let settings = Arc::new(Mutex::new(settings));
             app.manage(settings.clone());
 
@@ -58,6 +63,16 @@ pub fn run() {
 
             // Setup native context menu event handler
             context_menu::setup_menu_handler(app);
+
+            // Show settings window on first launch
+            if first_launch {
+                let handle = app.handle().clone();
+                // Delay slightly so the app is fully initialized
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    tray::open_settings(&handle).ok();
+                });
+            }
 
             // Start clipboard monitor
             let app_handle = app.handle().clone();
@@ -173,6 +188,8 @@ pub fn run() {
             context_menu::show_clip_context_menu,
             commands::set_blur_paused,
             commands::do_hide_window,
+            commands::open_settings_window,
+            commands::close_settings_window,
             screenshot::get_screenshot_data,
             screenshot::save_screenshot,
             screenshot::copy_screenshot_to_clipboard,

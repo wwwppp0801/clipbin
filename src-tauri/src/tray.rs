@@ -37,9 +37,11 @@ fn mark_action() {
 
 pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let toggle = MenuItemBuilder::with_id("toggle", "Show/Hide ClipBin").build(app)?;
+    let settings = MenuItemBuilder::with_id("settings", "Settings...").build(app)?;
     let quit = MenuItemBuilder::with_id("quit", "Quit ClipBin").build(app)?;
     let menu = MenuBuilder::new(app)
         .item(&toggle)
+        .item(&settings)
         .separator()
         .item(&quit)
         .build()?;
@@ -57,6 +59,9 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "toggle" => toggle_window(app),
+            "settings" => {
+                open_settings(app).ok();
+            }
             "quit" => app.exit(0),
             _ => {}
         })
@@ -164,6 +169,31 @@ fn position_at_bottom(app: &tauri::AppHandle) {
             .set_position(tauri::LogicalPosition::new(tauri_x, tauri_y))
             .ok();
     }
+}
+
+/// Open the settings window (or focus it if already open).
+pub fn open_settings(app: &tauri::AppHandle) -> Result<(), String> {
+    // If already open, just focus it
+    if let Some(win) = app.get_webview_window("settings") {
+        win.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let win = tauri::WebviewWindowBuilder::new(
+        app,
+        "settings",
+        tauri::WebviewUrl::App("/settings.html".into()),
+    )
+    .title("ClipBin Settings")
+    .inner_size(400.0, 560.0)
+    .resizable(false)
+    .center()
+    .decorations(false)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    win.set_focus().ok();
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
