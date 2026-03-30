@@ -62,34 +62,34 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       data-testid="clip-card"
-      className={`group relative flex h-full w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-xl border transition-all duration-150 ${
+      className={`group relative flex w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-xl border transition-all duration-150 ${
         isSelected
-          ? "border-blue-500/70 bg-gray-800 shadow-lg shadow-blue-500/10 scale-[1.02]"
-          : "border-gray-700/40 bg-gray-800/50 hover:border-gray-600 hover:bg-gray-800/80 hover:scale-[1.01]"
+          ? "border-blue-500 bg-gray-800 ring-1 ring-blue-500/50 shadow-lg shadow-blue-500/20"
+          : "border-gray-700/40 bg-gray-800/50 hover:border-gray-600 hover:bg-gray-800/80"
       }`}
     >
       {/* Header: content type + shortcut number */}
-      <div className="flex items-center justify-between border-b border-gray-700/30 px-3 py-1.5">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-between gap-1 border-b border-gray-700/30 px-3 py-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           {shortcutNumber !== undefined && (
             <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-600/50 text-[9px] font-bold text-gray-300">
               {shortcutNumber}
             </span>
           )}
-          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${colorClass}`}>
+          <span className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium ${colorClass}`}>
             {typeLabel}
           </span>
         </div>
-        <div className="flex items-center gap-1">
-          {clip.is_pinned && <span className="text-[10px] text-yellow-500">📌</span>}
-          <div className="flex items-center gap-1 text-[10px] text-gray-500">
-            {clip.source_app && <span className="max-w-[60px] truncate">{clip.source_app}</span>}
-            {clip.source_app && <span>·</span>}
-            <span>{formatRelativeTime(clip.created_at)}</span>
+        <div className="flex min-w-0 items-center gap-1">
+          {clip.is_pinned && <span className="shrink-0 text-[10px] text-yellow-500">📌</span>}
+          <div className="flex min-w-0 items-center gap-1 text-[10px] text-gray-500">
+            {clip.source_app && <span className="max-w-[50px] truncate">{clip.source_app}</span>}
+            {clip.source_app && <span className="shrink-0">·</span>}
+            <span className="shrink-0">{formatRelativeTime(clip.created_at)}</span>
             {clip.use_count > 1 && (
               <>
-                <span>·</span>
-                <span>{clip.use_count}x</span>
+                <span className="shrink-0">·</span>
+                <span className="shrink-0">{clip.use_count}x</span>
               </>
             )}
           </div>
@@ -97,7 +97,7 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
       </div>
 
       {/* Content preview */}
-      <div className="min-h-0 flex-1 overflow-hidden p-3">
+      <div className="flex-1 overflow-hidden p-3">
         {clip.content_type === "image" && clip.image_preview ? (
           <img
             src={clip.image_preview}

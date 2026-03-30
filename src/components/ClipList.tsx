@@ -156,12 +156,12 @@ export default function ClipList() {
   }
 
   return (
-    <div className="relative flex-1">
+    <div className="relative min-h-0 flex-1 overflow-hidden">
       {/* Right fade overlay to hint more clips */}
-      <div className="pointer-events-none absolute top-0 right-0 z-10 h-full w-8 bg-gradient-to-l from-gray-900/80 to-transparent" />
+      <div className="pointer-events-none absolute top-0 right-0 z-10 h-full w-6 bg-gradient-to-l from-gray-900/60 to-transparent" />
       <div
         ref={scrollRef}
-        className="flex h-full items-stretch gap-2.5 overflow-x-auto px-3 pb-3 scrollbar-hide"
+        className="flex h-full items-stretch gap-2.5 overflow-x-auto overflow-y-hidden px-3 pt-2 pb-3 scrollbar-hide"
         data-testid="clip-list"
         onWheel={handleWheel}
       >
