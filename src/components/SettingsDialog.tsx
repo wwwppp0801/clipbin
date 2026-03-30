@@ -236,7 +236,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
         </div>
 
         {/* About */}
-        <div className="mb-5 text-center text-[10px] text-gray-500">ClipBin v0.6.0</div>
+        <div className="mb-5 text-center text-[10px] text-gray-500">ClipBin v0.7.0</div>
 
         {/* Buttons */}
         <div className="flex justify-end gap-2">
