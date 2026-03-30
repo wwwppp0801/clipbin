@@ -26,7 +26,7 @@ ClipBin is a macOS clipboard manager built with Tauri 2.0 + React + TypeScript +
 - Frontend tests: Vitest + React Testing Library in `tests/frontend/`
 - E2E tests: Playwright against Vite dev server with Tauri IPC mocked in `tests/e2e/`
 - Rust tests: cargo test with in-memory SQLite
-- Current test counts: 29 Rust + 44 frontend + 15 E2E = **88 total**
+- Current test counts: 29 Rust + 48 frontend + 15 E2E = **92 total**
 
 ### Git
 - Commit messages: conventional commits (feat/fix/chore/test/docs)
@@ -81,10 +81,11 @@ pnpm tauri build      # Build release .dmg
 - Hash-based deduplication (SHA-256), re-copies update timestamp
 - Paste flow: hide window → activate previous app (NSRunningApplication) → write clipboard → CGEvent Cmd+V
 - Self-triggered flag prevents monitor from re-recording paste actions
-- Window positioning: NSScreen.visibleFrame to avoid Dock overlap
+- Window positioning: cursor-based screen detection → NSScreen.visibleFrame for correct monitor
 - Animation: slide-up/slide-down CSS, coordinated via Tauri events (window-will-show/hide)
-- Grace period (400ms) after show/hide to prevent blur/hotkey interference
-- Settings persisted to JSON in app data directory
+- Grace period (600ms) after show/hide to prevent blur/hotkey interference (extended for multi-monitor)
+- Settings: standalone window (public/settings.html), persisted to JSON in app data directory
+- First launch detection: check if settings.json exists before loading defaults
 - Max clips enforcement (default 500) — deletes oldest non-pinned clips
 
 ## Key Lessons Learned
@@ -99,6 +100,9 @@ pnpm tauri build      # Build release .dmg
 - Tauri WebviewWindow steals focus (unlike NSPanel) — must track previous app PID
 - `NSWorkspace.frontmostApplication` to remember, `NSRunningApplication.activateWithOptions` to restore
 - Blur-hide needs grace period to avoid instant dismiss after show
+- **Multi-monitor**: `NSScreen.mainScreen` returns the screen with keyboard focus, NOT the primary display. Use `NSScreen.screens()[0]` for the primary display height (needed for coordinate conversion)
+- **Coordinate conversion**: macOS uses bottom-left origin, Tauri uses top-left of primary screen. For external monitors, `tauri_y = primary_height - macOS_bottom_left_y`
+- **Multi-monitor focus**: window repositioning across screens can trigger transient blur events. Re-focus after 150ms delay + extended grace period (600ms) to absorb them
 
 ### Clipboard Types
 - `arboard` only reads text and images — need NSPasteboard FFI for file URLs and HTML
@@ -111,6 +115,19 @@ pnpm tauri build      # Build release .dmg
 - Pure translateY is cleaner for slide effects
 - Coordinate Rust show/hide with frontend animation via Tauri events
 - Don't use complex state locks (AtomicBool) — simple timestamp grace period is more reliable
+
+### Context Menu & Blur Race Conditions
+- macOS ctrl+click fires both `click` and `contextmenu` events; `click` fires first
+- Must check `e.ctrlKey` in click handler to avoid triggering paste on right-click
+- Native `popup_menu()` blocks the main thread; queued blur events fire after it returns
+- Call `set_blur_paused(true)` from frontend BEFORE `invoke("show_clip_context_menu")` to prevent race condition where blur fires before Rust command runs
+- After popup_menu returns, `mark_action()` before `set_blur_paused(false)` absorbs queued blur events via grace period
+
+### Standalone Windows (Settings, Screenshot Editor)
+- Use `public/*.html` with vanilla JS + `window.__TAURI_INTERNALS__` for separate windows
+- Do NOT use Vite React entry points in `public/` — Vite HMR `@vitejs/plugin-react` preamble detection fails for non-main entry points
+- `\u` escape sequences in HTML don't work — use actual Unicode characters (⇧⌘⌫←→)
+- Pattern: `WebviewWindowBuilder::new(app, "label", WebviewUrl::App("/file.html"))` to create
 
 ### CI
 - `cargo clippy -A unexpected_cfgs` needed for old objc crate macros

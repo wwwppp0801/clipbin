@@ -125,6 +125,44 @@ screencapture -x /tmp/clipbin-editor.png
 | Drag move | `dm:x,y` | `cliclick dm:800,500` |
 | Drag end | `du:x,y` | `cliclick du:800,500` |
 
+## Multi-Monitor Testing
+
+Get screen layout (essential before multi-monitor tests):
+
+```bash
+swift -e '
+import AppKit
+for (i, screen) in NSScreen.screens.enumerated() {
+    let f = screen.frame
+    let vf = screen.visibleFrame
+    print("Screen \(i): frame=(\(f.origin.x),\(f.origin.y),\(f.width),\(f.height)) visible=(\(vf.origin.x),\(vf.origin.y),\(vf.width),\(vf.height))")
+}
+'
+```
+
+Move mouse to external screen (use X coordinate beyond primary width):
+
+```bash
+# If primary is 3008px wide, external starts at x=3008
+cliclick m:3800,800
+```
+
+Capture all screens (one file per display):
+
+```bash
+screencapture -x /tmp/screen1.png /tmp/screen2.png
+```
+
+## Context Menu Testing
+
+Right-click on a clip card:
+
+```bash
+cliclick rc:200,1540  # Adjust Y based on panel position
+```
+
+Note: `cliclick rc` triggers native right-click but may not reliably fire webview `contextmenu` events in all cases.
+
 ## Tips
 
 - Always `sleep` after hotkey simulation (animations take ~250ms, use 1s buffer)
@@ -134,3 +172,6 @@ screencapture -x /tmp/clipbin-editor.png
 - Crop coordinates depend on screen resolution (check with `system_profiler SPDisplaysDataType | grep Resolution`)
 - Use `pgrep -f "target/debug/clipbin"` to verify app is running
 - After testing, view screenshots with `Read` tool to verify visual correctness
+- For multi-monitor: use `screencapture -x file1.png file2.png` to capture all displays
+- Panel position on primary: bottom of screen, Y ≈ screen_height - 260 - 12
+- When debugging blur/focus issues, add `eprintln!` to `setup_blur_hide` and `show_window` in `tray.rs`, then check stderr with `pnpm tauri dev 2>/tmp/debug.log`
