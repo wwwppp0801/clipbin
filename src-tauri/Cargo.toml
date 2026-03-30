@@ -1,6 +1,6 @@
 [package]
 name = "clipbin"
-version = "0.7.0"
+version = "0.8.0"
 description = "A lightweight clipboard manager for macOS"
 authors = ["ClipBin"]
 edition = "2021"
