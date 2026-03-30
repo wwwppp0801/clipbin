@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedoc/json-schema/refs/heads/main/tauri/tauri.conf.json",
   "productName": "ClipBin",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "identifier": "app.clipbin",
   "build": {
     "beforeDevCommand": "pnpm dev",
