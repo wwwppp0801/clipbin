@@ -14,7 +14,8 @@ static LAST_ACTION_TIME: AtomicU64 = AtomicU64::new(0);
 static BLUR_PAUSED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Grace period in ms — ignore all hotkey/blur during this window.
-const GRACE_MS: u64 = 400;
+/// Extended to 600ms to handle multi-monitor focus transition delays.
+const GRACE_MS: u64 = 600;
 
 pub fn set_blur_paused(paused: bool) {
     BLUR_PAUSED.store(paused, std::sync::atomic::Ordering::Relaxed);
@@ -105,11 +106,28 @@ fn show_window(app: &tauri::AppHandle) {
         #[cfg(target_os = "macos")]
         crate::paste::remember_frontmost_app();
 
+        // Mark action FIRST so grace period covers the entire show sequence
         mark_action();
         position_at_bottom(app);
         window.show().ok();
         window.set_focus().ok();
+        // Re-mark after show to reset the grace period timer
+        mark_action();
         app.emit("window-will-show", ()).ok();
+
+        // On multi-monitor setups, the window may lose focus during repositioning.
+        // Re-focus after a short delay and re-mark grace period.
+        let handle = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(150));
+            mark_action();
+            if let Some(w) = handle.get_webview_window("main") {
+                if w.is_visible().unwrap_or(false) {
+                    w.set_focus().ok();
+                    mark_action();
+                }
+            }
+        });
     }
 }
 
@@ -127,41 +145,56 @@ pub fn do_hide(app: &tauri::AppHandle) {
 
 fn position_at_bottom(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let scale = window
-            .current_monitor()
-            .ok()
-            .flatten()
-            .map(|m| m.scale_factor())
-            .unwrap_or(2.0);
-
-        let screen_total_height = window
-            .current_monitor()
-            .ok()
-            .flatten()
-            .map(|m| m.size().height as f64 / scale)
-            .unwrap_or(900.0);
-
         #[cfg(target_os = "macos")]
-        let (vis_x, vis_y, vis_w, _vis_h) = macos_visible_frame();
+        let (tauri_x, tauri_y, panel_width) = {
+            // macOS uses bottom-left origin; Tauri uses top-left origin of primary screen.
+            // visibleFrame.origin.y is the bottom edge of usable area (above Dock).
+            // Convert: tauri_y = primary_height - (vis_y + vis_h) gives the top-left Y
+            // of the visible area's top edge. We want the panel at the bottom of visible area.
+            let geo = macos_screen_at_cursor();
+            let padding: f64 = 12.0;
+            let panel_height: f64 = 260.0;
+            let panel_w = geo.vis_w - (padding * 2.0);
+
+            // Top of visible area in Tauri coords (top-left origin)
+            let vis_top_y = geo.primary_height - (geo.vis_y + geo.vis_h);
+            // Bottom of visible area in Tauri coords
+            let vis_bottom_y = geo.primary_height - geo.vis_y;
+            // Place panel at bottom with padding
+            let y = vis_bottom_y - panel_height - padding;
+            // Clamp: don't go above visible area top
+            let y = y.max(vis_top_y + padding);
+
+            let x = geo.vis_x + padding;
+            (x, y, panel_w)
+        };
 
         #[cfg(not(target_os = "macos"))]
-        let (vis_x, vis_y, vis_w, _vis_h) = {
+        let (tauri_x, tauri_y, panel_width) = {
+            let scale = window
+                .current_monitor()
+                .ok()
+                .flatten()
+                .map(|m| m.scale_factor())
+                .unwrap_or(2.0);
+            let h = window
+                .current_monitor()
+                .ok()
+                .flatten()
+                .map(|m| m.size().height as f64 / scale)
+                .unwrap_or(900.0);
             let w = window
                 .current_monitor()
                 .ok()
                 .flatten()
                 .map(|m| m.size().width as f64 / scale)
                 .unwrap_or(1440.0);
-            (0.0, 0.0, w, screen_total_height)
+            let padding: f64 = 12.0;
+            let panel_height: f64 = 260.0;
+            (padding, h - panel_height - padding, w - padding * 2.0)
         };
 
-        let padding: f64 = 12.0;
         let panel_height: f64 = 260.0;
-        let panel_width: f64 = vis_w - (padding * 2.0);
-
-        let tauri_y = screen_total_height - vis_y - panel_height - padding;
-        let tauri_x = vis_x + padding;
-
         window
             .set_size(tauri::LogicalSize::new(panel_width, panel_height))
             .ok();
@@ -196,23 +229,104 @@ pub fn open_settings(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Screen geometry for positioning the panel.
+/// All values in macOS logical points (bottom-left origin coordinate system).
+#[cfg(target_os = "macos")]
+struct ScreenGeometry {
+    /// Primary screen total height (for bottom-left → top-left conversion)
+    primary_height: f64,
+    /// Visible frame (excluding Dock/menu bar)
+    vis_x: f64,
+    vis_y: f64,
+    vis_w: f64,
+    vis_h: f64,
+}
+
+/// Find the screen containing the mouse cursor and return its geometry.
 #[cfg(target_os = "macos")]
 #[allow(deprecated)]
-fn macos_visible_frame() -> (f64, f64, f64, f64) {
+fn macos_screen_at_cursor() -> ScreenGeometry {
     use cocoa::appkit::NSScreen;
     use cocoa::base::nil;
+    use cocoa::foundation::NSArray;
+    use core_graphics::event::CGEvent;
+    use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 
     unsafe {
-        let screen = NSScreen::mainScreen(nil);
-        if screen != nil {
-            let frame = NSScreen::visibleFrame(screen);
-            return (
-                frame.origin.x,
-                frame.origin.y,
-                frame.size.width,
-                frame.size.height,
-            );
+        // Primary screen height (needed to convert coordinate systems).
+        // NOTE: NSScreen::mainScreen returns the screen with keyboard focus, NOT the
+        // primary display. screens()[0] is always the primary display.
+        let screens = NSScreen::screens(nil);
+        let count = NSArray::count(screens) as usize;
+        let primary_h = if count > 0 {
+            let first: *mut objc::runtime::Object =
+                cocoa::foundation::NSArray::objectAtIndex(screens, 0);
+            if first != nil {
+                NSScreen::frame(first).size.height
+            } else {
+                900.0
+            }
+        } else {
+            900.0
+        };
+
+        // Get cursor position (CGEvent uses top-left origin of primary screen)
+        let cursor_pos =
+            if let Ok(source) = CGEventSource::new(CGEventSourceStateID::HIDSystemState) {
+                let event = CGEvent::new(source);
+                event.map(|e| e.location()).unwrap_or_default()
+            } else {
+                core_graphics::geometry::CGPoint::new(0.0, 0.0)
+            };
+
+        // Convert cursor from top-left to bottom-left coords
+        let cursor_bl_y = primary_h - cursor_pos.y;
+
+        for i in 0..count {
+            let screen: *mut objc::runtime::Object =
+                cocoa::foundation::NSArray::objectAtIndex(screens, i as u64);
+            if screen == nil {
+                continue;
+            }
+            let full = NSScreen::frame(screen);
+
+            if cursor_pos.x >= full.origin.x
+                && cursor_pos.x < full.origin.x + full.size.width
+                && cursor_bl_y >= full.origin.y
+                && cursor_bl_y < full.origin.y + full.size.height
+            {
+                let vis = NSScreen::visibleFrame(screen);
+                return ScreenGeometry {
+                    primary_height: primary_h,
+                    vis_x: vis.origin.x,
+                    vis_y: vis.origin.y,
+                    vis_w: vis.size.width,
+                    vis_h: vis.size.height,
+                };
+            }
+        }
+
+        // Fallback to first screen (primary display)
+        if count > 0 {
+            let first: *mut objc::runtime::Object =
+                cocoa::foundation::NSArray::objectAtIndex(screens, 0);
+            if first != nil {
+                let vis = NSScreen::visibleFrame(first);
+                return ScreenGeometry {
+                    primary_height: primary_h,
+                    vis_x: vis.origin.x,
+                    vis_y: vis.origin.y,
+                    vis_w: vis.size.width,
+                    vis_h: vis.size.height,
+                };
+            }
         }
     }
-    (0.0, 0.0, 1440.0, 900.0)
+    ScreenGeometry {
+        primary_height: 900.0,
+        vis_x: 0.0,
+        vis_y: 0.0,
+        vis_w: 1440.0,
+        vis_h: 900.0,
+    }
 }
