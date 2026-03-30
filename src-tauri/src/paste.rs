@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use crate::db::Database;
-use crate::models::ContentType;
+use crate::models::{ClipRepresentation, ContentType};
 
 /// Flag to indicate the next clipboard change was caused by us (skip monitoring).
 static SELF_TRIGGERED: AtomicBool = AtomicBool::new(false);
@@ -15,97 +15,81 @@ pub fn was_self_triggered() -> bool {
     SELF_TRIGGERED.swap(false, Ordering::Relaxed)
 }
 
-/// Copy a clip to system clipboard only (no paste simulation, no window hide).
-pub async fn copy_clip_to_clipboard(db: &Database, id: i64) -> Result<(), String> {
+/// Write clip content to system clipboard. If stored representations are available,
+/// writes ALL of them for perfect restoration. Otherwise falls back to legacy behavior.
+async fn write_clip_to_clipboard(db: &Database, clip_id: i64) -> Result<(), String> {
     let clip = db
-        .get_clip_by_id(id)
+        .get_clip_by_id(clip_id)
         .await
         .map_err(|e| e.to_string())?
         .ok_or("Clip not found")?;
 
     SELF_TRIGGERED.store(true, Ordering::Relaxed);
 
-    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    // Try full restoration path first
+    let representations = db
+        .get_representations(clip_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    match clip.content_type {
-        ContentType::Text | ContentType::Html => {
+    if !representations.is_empty() {
+        #[cfg(target_os = "macos")]
+        write_all_representations_to_pasteboard(&representations)?;
+        #[cfg(not(target_os = "macos"))]
+        {
+            // Non-macOS fallback: write text only
+            let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
             if let Some(text) = &clip.text_content {
                 clipboard.set_text(text).map_err(|e| e.to_string())?;
             }
         }
-        ContentType::FilePath =>
-        {
-            #[cfg(target_os = "macos")]
-            if let Some(text) = &clip.text_content {
-                write_file_urls_to_pasteboard(text)?;
+    } else {
+        // Legacy fallback for clips without stored representations
+        let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+        match clip.content_type {
+            ContentType::Text | ContentType::Html => {
+                if let Some(text) = &clip.text_content {
+                    clipboard.set_text(text).map_err(|e| e.to_string())?;
+                }
             }
-        }
-        ContentType::Image => {
-            if let Some(png_data) = &clip.image_data {
-                let img = image::load_from_memory(png_data).map_err(|e| e.to_string())?;
-                let rgba = img.to_rgba8();
-                let (w, h) = rgba.dimensions();
-                let arboard_img = arboard::ImageData {
-                    width: w as usize,
-                    height: h as usize,
-                    bytes: std::borrow::Cow::Borrowed(rgba.as_raw()),
-                };
-                clipboard
-                    .set_image(arboard_img)
-                    .map_err(|e| e.to_string())?;
+            ContentType::FilePath => {
+                if let Some(text) = &clip.text_content {
+                    #[cfg(target_os = "macos")]
+                    write_file_urls_to_pasteboard(text)?;
+                    #[cfg(not(target_os = "macos"))]
+                    clipboard.set_text(text).map_err(|e| e.to_string())?;
+                }
+            }
+            ContentType::Image => {
+                if let Some(png_data) = &clip.image_data {
+                    let img = image::load_from_memory(png_data).map_err(|e| e.to_string())?;
+                    let rgba = img.to_rgba8();
+                    let (w, h) = rgba.dimensions();
+                    let arboard_img = arboard::ImageData {
+                        width: w as usize,
+                        height: h as usize,
+                        bytes: std::borrow::Cow::Borrowed(rgba.as_raw()),
+                    };
+                    clipboard
+                        .set_image(arboard_img)
+                        .map_err(|e| e.to_string())?;
+                }
             }
         }
     }
 
-    db.touch_clip(id).await.ok();
+    db.touch_clip(clip_id).await.ok();
     Ok(())
+}
+
+/// Copy a clip to system clipboard only (no paste simulation, no window hide).
+pub async fn copy_clip_to_clipboard(db: &Database, id: i64) -> Result<(), String> {
+    write_clip_to_clipboard(db, id).await
 }
 
 /// Write a clip's content to the system clipboard, then simulate Cmd+V.
 pub async fn paste_clip(db: &Database, id: i64) -> Result<(), String> {
-    let clip = db
-        .get_clip_by_id(id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or("Clip not found")?;
-
-    SELF_TRIGGERED.store(true, Ordering::Relaxed);
-
-    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
-
-    match clip.content_type {
-        ContentType::Text | ContentType::Html => {
-            if let Some(text) = &clip.text_content {
-                clipboard.set_text(text).map_err(|e| e.to_string())?;
-            }
-        }
-        ContentType::FilePath => {
-            if let Some(text) = &clip.text_content {
-                // Write file URLs back to NSPasteboard so Finder can paste them
-                #[cfg(target_os = "macos")]
-                write_file_urls_to_pasteboard(text)?;
-                #[cfg(not(target_os = "macos"))]
-                clipboard.set_text(text).map_err(|e| e.to_string())?;
-            }
-        }
-        ContentType::Image => {
-            if let Some(png_data) = &clip.image_data {
-                let img = image::load_from_memory(png_data).map_err(|e| e.to_string())?;
-                let rgba = img.to_rgba8();
-                let (w, h) = rgba.dimensions();
-                let arboard_img = arboard::ImageData {
-                    width: w as usize,
-                    height: h as usize,
-                    bytes: std::borrow::Cow::Borrowed(rgba.as_raw()),
-                };
-                clipboard
-                    .set_image(arboard_img)
-                    .map_err(|e| e.to_string())?;
-            }
-        }
-    }
-
-    db.touch_clip(id).await.ok();
+    write_clip_to_clipboard(db, id).await?;
 
     #[cfg(target_os = "macos")]
     simulate_paste();
@@ -149,6 +133,52 @@ pub fn activate_previous_app() {
             let _: bool = msg_send![app, activateWithOptions: 2u64];
         }
     }
+}
+
+/// Write ALL representations back to NSPasteboard for perfect clipboard restoration.
+#[cfg(target_os = "macos")]
+fn write_all_representations_to_pasteboard(
+    representations: &[ClipRepresentation],
+) -> Result<(), String> {
+    use objc::runtime::{Class, Object};
+    use objc::{msg_send, sel, sel_impl};
+
+    if representations.is_empty() {
+        return Err("No representations to write".to_string());
+    }
+
+    unsafe {
+        let pb_cls = Class::get("NSPasteboard").ok_or("NSPasteboard not found")?;
+        let pb: *mut Object = msg_send![pb_cls, generalPasteboard];
+        let _: () = msg_send![pb, clearContents];
+
+        let nsstring_cls = Class::get("NSString").ok_or("NSString not found")?;
+        let nsdata_cls = Class::get("NSData").ok_or("NSData not found")?;
+
+        // Build NSArray of all UTI type strings and declare them
+        let arr_cls = Class::get("NSMutableArray").ok_or("NSMutableArray not found")?;
+        let type_arr: *mut Object = msg_send![arr_cls, arrayWithCapacity: representations.len()];
+
+        for rep in representations {
+            let c_uti = std::ffi::CString::new(rep.uti.as_str()).map_err(|e| e.to_string())?;
+            let ns_uti: *mut Object = msg_send![nsstring_cls, stringWithUTF8String: c_uti.as_ptr()];
+            let _: () = msg_send![type_arr, addObject: ns_uti];
+        }
+
+        // declareTypes:owner: declares all types at once
+        let _: isize = msg_send![pb, declareTypes: type_arr owner: std::ptr::null::<Object>()];
+
+        // Now set data for each type
+        for rep in representations {
+            let c_uti = std::ffi::CString::new(rep.uti.as_str()).map_err(|e| e.to_string())?;
+            let ns_uti: *mut Object = msg_send![nsstring_cls, stringWithUTF8String: c_uti.as_ptr()];
+            let ns_data: *mut Object =
+                msg_send![nsdata_cls, dataWithBytes: rep.data.as_ptr() length: rep.data.len()];
+            let _: bool = msg_send![pb, setData: ns_data forType: ns_uti];
+        }
+    }
+
+    Ok(())
 }
 
 /// Write file paths back to NSPasteboard as file URLs (so Finder can paste them).

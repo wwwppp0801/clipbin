@@ -1,7 +1,7 @@
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 use std::path::Path;
 
-use crate::models::{Clip, ContentType, NewClip};
+use crate::models::{Clip, ClipRepresentation, ContentType, NewClip};
 
 pub struct Database {
     pool: SqlitePool,
@@ -32,6 +32,11 @@ impl Database {
     }
 
     async fn run_migrations(&self) -> Result<(), sqlx::Error> {
+        // Enable foreign keys for CASCADE deletes
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&self.pool)
+            .await?;
+
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS clips (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,6 +84,26 @@ impl Database {
             .execute(&self.pool)
             .await?;
 
+        // Clipboard representations — stores all UTI types for perfect restoration
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS clip_representations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                clip_id INTEGER NOT NULL REFERENCES clips(id) ON DELETE CASCADE,
+                uti TEXT NOT NULL,
+                data BLOB NOT NULL,
+                UNIQUE(clip_id, uti)
+            )",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_clip_representations_clip_id
+             ON clip_representations(clip_id)",
+        )
+        .execute(&self.pool)
+        .await?;
+
         // Collections table
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS collections (
@@ -108,6 +133,8 @@ impl Database {
         let now = chrono::Utc::now().to_rfc3339();
         let content_type_str = clip.content_type.as_str();
 
+        let mut tx = self.pool.begin().await?;
+
         let id = sqlx::query_scalar::<_, i64>(
             "INSERT INTO clips (content_type, text_content, image_data, content_hash, source_app, created_at, last_used_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -120,8 +147,20 @@ impl Database {
         .bind(&clip.source_app)
         .bind(&now)
         .bind(&now)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await?;
+
+        // Insert all pasteboard representations
+        for rep in &clip.representations {
+            sqlx::query("INSERT INTO clip_representations (clip_id, uti, data) VALUES (?, ?, ?)")
+                .bind(id)
+                .bind(&rep.uti)
+                .bind(&rep.data)
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        tx.commit().await?;
 
         Ok(Clip {
             id,
@@ -338,6 +377,24 @@ impl Database {
         Ok(())
     }
 
+    /// Get all pasteboard representations for a clip (for perfect clipboard restoration).
+    pub async fn get_representations(
+        &self,
+        clip_id: i64,
+    ) -> Result<Vec<ClipRepresentation>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, (String, Vec<u8>)>(
+            "SELECT uti, data FROM clip_representations WHERE clip_id = ? ORDER BY id",
+        )
+        .bind(clip_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|(uti, data)| ClipRepresentation { uti, data })
+            .collect())
+    }
+
     pub async fn get_clip_by_id(&self, id: i64) -> Result<Option<Clip>, sqlx::Error> {
         let row = sqlx::query_as::<_, ClipRow>(
             "SELECT id, content_type, text_content, image_data, content_hash, source_app,
@@ -399,6 +456,7 @@ mod tests {
             image_data: None,
             content_hash: hash.to_string(),
             source_app: None,
+            representations: vec![],
         }
     }
 
@@ -616,5 +674,75 @@ mod tests {
         // Pinned should be first
         assert_eq!(clips[0].id, clip2.id);
         assert!(clips[0].is_pinned);
+    }
+
+    #[tokio::test]
+    async fn test_insert_clip_with_representations() {
+        use crate::models::ClipRepresentation;
+        let db = setup_db().await;
+        let clip = NewClip {
+            content_type: ContentType::Text,
+            text_content: Some("hello".to_string()),
+            image_data: None,
+            content_hash: "rep_hash".to_string(),
+            source_app: None,
+            representations: vec![
+                ClipRepresentation {
+                    uti: "public.utf8-plain-text".to_string(),
+                    data: b"hello".to_vec(),
+                },
+                ClipRepresentation {
+                    uti: "public.html".to_string(),
+                    data: b"<b>hello</b>".to_vec(),
+                },
+            ],
+        };
+        let inserted = db.insert_clip(clip).await.unwrap();
+
+        let reps = db.get_representations(inserted.id).await.unwrap();
+        assert_eq!(reps.len(), 2);
+        assert_eq!(reps[0].uti, "public.utf8-plain-text");
+        assert_eq!(reps[0].data, b"hello");
+        assert_eq!(reps[1].uti, "public.html");
+        assert_eq!(reps[1].data, b"<b>hello</b>");
+    }
+
+    #[tokio::test]
+    async fn test_representations_cascade_delete() {
+        use crate::models::ClipRepresentation;
+        let db = setup_db().await;
+        let clip = NewClip {
+            content_type: ContentType::Text,
+            text_content: Some("bye".to_string()),
+            image_data: None,
+            content_hash: "cascade_hash".to_string(),
+            source_app: None,
+            representations: vec![ClipRepresentation {
+                uti: "public.utf8-plain-text".to_string(),
+                data: b"bye".to_vec(),
+            }],
+        };
+        let inserted = db.insert_clip(clip).await.unwrap();
+
+        // Verify representation exists
+        let reps = db.get_representations(inserted.id).await.unwrap();
+        assert_eq!(reps.len(), 1);
+
+        // Delete the clip — representations should cascade
+        db.delete_clip(inserted.id).await.unwrap();
+        let reps = db.get_representations(inserted.id).await.unwrap();
+        assert!(reps.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_representations_empty_for_legacy_clip() {
+        let db = setup_db().await;
+        let clip = db
+            .insert_clip(make_text_clip("legacy", "legacy_hash"))
+            .await
+            .unwrap();
+
+        let reps = db.get_representations(clip.id).await.unwrap();
+        assert!(reps.is_empty());
     }
 }

@@ -167,6 +167,7 @@ pub async fn import_history(state: State<'_, Arc<Database>>, json: String) -> Re
                     format!("import_{}", hex::encode(hasher.finalize()))
                 },
                 source_app: None,
+                representations: vec![],
             };
             // Skip if already exists
             if state

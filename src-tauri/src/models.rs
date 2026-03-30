@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+/// A single pasteboard representation (UTI + raw data).
+#[derive(Debug, Clone)]
+pub struct ClipRepresentation {
+    pub uti: String,
+    pub data: Vec<u8>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ContentType {
     Text,
@@ -49,6 +56,8 @@ pub struct NewClip {
     pub image_data: Option<Vec<u8>>,
     pub content_hash: String,
     pub source_app: Option<String>,
+    /// All raw pasteboard representations (UTI → bytes) for perfect restoration.
+    pub representations: Vec<ClipRepresentation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
