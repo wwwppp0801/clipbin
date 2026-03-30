@@ -9,7 +9,7 @@ describe("SearchBar", () => {
   });
 
   it("renders search input", () => {
-    render(<SearchBar onOpenSettings={() => {}} />);
+    render(<SearchBar />);
     const input = screen.getByTestId("search-input");
     expect(input).toBeInTheDocument();
     expect(input).toHaveAttribute("placeholder", "Search clips...");
@@ -19,7 +19,7 @@ describe("SearchBar", () => {
     const setSearchQuerySpy = vi.fn();
     useClipStore.setState({ setSearchQuery: setSearchQuerySpy } as never);
 
-    render(<SearchBar onOpenSettings={() => {}} />);
+    render(<SearchBar />);
     const input = screen.getByTestId("search-input");
     fireEvent.change(input, { target: { value: "hello" } });
 
@@ -33,7 +33,16 @@ describe("SearchBar", () => {
   });
 
   it("auto-focuses the input on mount", () => {
-    render(<SearchBar onOpenSettings={() => {}} />);
+    render(<SearchBar />);
     expect(screen.getByTestId("search-input")).toHaveFocus();
+  });
+
+  it("opens settings window via invoke on settings button click", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const invokeMock = vi.mocked(invoke).mockResolvedValue(undefined as never);
+
+    render(<SearchBar />);
+    fireEvent.click(screen.getByTestId("settings-button"));
+    expect(invokeMock).toHaveBeenCalledWith("open_settings_window");
   });
 });

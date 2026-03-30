@@ -87,4 +87,38 @@ describe("ClipCard", () => {
     fireEvent.click(screen.getByTestId("clip-delete"));
     expect(deleteSpy).toHaveBeenCalledWith(1);
   });
+
+  it("does NOT paste on ctrl+click (macOS right-click)", () => {
+    const pasteSpy = vi.fn();
+    useClipStore.setState({ pasteClip: pasteSpy } as never);
+
+    render(<ClipCard clip={textClip} isSelected={false} />);
+    fireEvent.click(screen.getByTestId("clip-card"), { ctrlKey: true });
+    expect(pasteSpy).not.toHaveBeenCalled();
+  });
+
+  it("does NOT paste on meta+click", () => {
+    const pasteSpy = vi.fn();
+    useClipStore.setState({ pasteClip: pasteSpy } as never);
+
+    render(<ClipCard clip={textClip} isSelected={false} />);
+    fireEvent.click(screen.getByTestId("clip-card"), { metaKey: true });
+    expect(pasteSpy).not.toHaveBeenCalled();
+  });
+
+  it("triggers context menu and pauses blur on right-click", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const invokeMock = vi.mocked(invoke).mockResolvedValue(undefined as never);
+
+    render(<ClipCard clip={textClip} isSelected={false} />);
+    fireEvent.contextMenu(screen.getByTestId("clip-card"));
+
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("set_blur_paused", { paused: true });
+      expect(invokeMock).toHaveBeenCalledWith("show_clip_context_menu", {
+        clipId: 1,
+        isPinned: false,
+      });
+    });
+  });
 });
