@@ -20,7 +20,9 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
   const pasteClip = useClipStore((s) => s.pasteClip);
   const setPreviewClipId = useClipStore((s) => s.setPreviewClipId);
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    // On macOS, ctrl+click is right-click — don't paste
+    if (e.ctrlKey || e.metaKey) return;
     pasteClip(clip.id);
   };
 
@@ -29,10 +31,13 @@ export default function ClipCard({ clip, isSelected, shortcutNumber }: ClipCardP
     setPreviewClipId(clip.id);
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     useClipStore.setState({ contextMenuClipId: clip.id });
+    // Pause blur BEFORE showing menu to prevent race condition:
+    // ctrl+click fires blur before the sync Tauri command runs
+    await invoke("set_blur_paused", { paused: true });
     invoke("show_clip_context_menu", {
       clipId: clip.id,
       isPinned: clip.is_pinned,

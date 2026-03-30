@@ -40,10 +40,14 @@ pub fn show_clip_context_menu(
     crate::tray::set_blur_paused(true);
 
     // popup_menu blocks until user picks or dismisses
-    window.popup_menu(&menu).map_err(|e| e.to_string())?;
+    let result = window.popup_menu(&menu).map_err(|e| e.to_string());
 
-    // Resume blur after menu closes
+    // Mark a grace period BEFORE unpausing — queued blur events from the native menu
+    // will fire right after we unpause, so the grace period absorbs them.
+    crate::tray::mark_action_public();
     crate::tray::set_blur_paused(false);
+
+    result?;
 
     Ok(())
 }

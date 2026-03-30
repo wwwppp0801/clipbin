@@ -36,6 +36,11 @@ fn mark_action() {
     LAST_ACTION_TIME.store(now_millis(), Ordering::Relaxed);
 }
 
+/// Public version of mark_action for use by context_menu.
+pub fn mark_action_public() {
+    mark_action();
+}
+
 pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let toggle = MenuItemBuilder::with_id("toggle", "Show/Hide ClipBin").build(app)?;
     let settings = MenuItemBuilder::with_id("settings", "Settings...").build(app)?;
@@ -117,9 +122,13 @@ fn show_window(app: &tauri::AppHandle) {
 
         // On multi-monitor setups, the window may lose focus during repositioning.
         // Re-focus after a short delay and re-mark grace period.
+        // Skip if blur is paused (e.g. context menu is open).
         let handle = app.clone();
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(150));
+            if BLUR_PAUSED.load(std::sync::atomic::Ordering::Relaxed) {
+                return;
+            }
             mark_action();
             if let Some(w) = handle.get_webview_window("main") {
                 if w.is_visible().unwrap_or(false) {
